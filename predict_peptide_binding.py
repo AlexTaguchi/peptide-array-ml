@@ -15,36 +15,36 @@ import os
 import pandas as pd
 import random
 import re
-import sys
 import torch
 from torch.multiprocessing import Pool
 import torch.nn as nn
 import torch.nn.functional as functional
 import torch.optim as optim
 
-# Default dataset to FNR if none specified
-if len(sys.argv) == 1:
-    sys.argv.append('data/FNR.csv')
-
 # Store current module and parameter scope
 moduleScope = dir()
 
 
 # ~~~~~~~~~~PARAMETERS~~~~~~~~~~ #
-aminoEncoder = 10  # number of features to describe amino acids --------- [default: 10]
-chemParams = False  # use chem.txt as amino acid representation --------- [default: False]
-filename = sys.argv[1]  # path to sequence and binding data ------------- [default: 'data/FNR.csv']
-hiddenLayers = 2  # number of hidden layers in neural network ----------- [default: 2]
-hiddenNodes = 100  # number of nodes per hidden layer of neural network - [default: 100]
-multipleRuns = 1  # repeat training multiple times in parallel ---------- [default: 1]
-testingMode = False  # path to pretrained 'Model.pth' neural network ---- [default: False]
-trainFraction = 0.9  # fraction of non-saturated data for training ------ [default: 0.9]
-trainSteps = 50000  # number of training steps -------------------------- [default: 50000]
-weightFolder = 'fits'  # directory name to save weights and biases ------ [default: 'fits']
-weightSave = False  # save weights to file ------------------------------ [default: False]
+aminoEncoder = 10  # number of features to describe amino acids (default: 10)
+chemParams = False  # use chem.txt as amino acid representation (default: False)
+filename = 'data/FNR.csv'  # path to sequence and binding data (default: 'data/FNR.csv')
+hiddenLayers = 2  # number of hidden layers in neural network (default: 2)
+hiddenNodes = 100  # number of nodes per hidden layer of neural network (default: 100)
+multipleRuns = 1  # repeat training multiple times in parallel (default: 1)
+testingMode = False  # path to pretrained 'Model.pth' neural network (default: False)
+trainFraction = 0.9  # fraction of non-saturated data for training (default: 0.9)
+trainSteps = 50000  # number of training steps (default: 50000)
+weightFolder = 'fits'  # directory name to save weights and biases (default: 'fits')
+weightSave = False  # save weights to file (default: False)
 
-# Set aminoEncoder to 3 if chemParams is True
-aminoEncoder = 3 if chemParams else aminoEncoder
+# If chemParams is True, assert that aminoEncoder equals number of chemical parameters
+if chemParams:
+    with open('data/chem.txt', 'r') as f:
+        f.readline()
+        count = len(f.readline().strip().split('\t'))
+        assert aminoEncoder == count, f'Set aminoEncoder to number {count}!'
+    del count, f
 
 # Store parameter settings
 paramScope = [x for x in dir() if x not in moduleScope + ['moduleScope']]
@@ -297,16 +297,16 @@ def training(sample):
         np.savetxt(directory + '/BF.txt', output_layer[1], delimiter=',')
 
         # Save correlation coefficient to file
-        with open(directory + '/CORR.txt', 'w') as file:
-            file.write(str(correlation))
+        with open(directory + '/CORR.txt', 'w') as f:
+            f.write(str(correlation))
 
         # Save parameter settings
-        with open(run_folder + '/Parameters.txt', 'w') as file:
-            file.write('#~~~ARCHITECTURE~~~#\n')
-            file.write(str(net))
-            file.write('\n\n#~~~PARAMETERS~~~#\n')
+        with open(run_folder + '/Parameters.txt', 'w') as f:
+            f.write('#~~~ARCHITECTURE~~~#\n')
+            f.write(str(net))
+            f.write('\n\n#~~~PARAMETERS~~~#\n')
             for m, n in paramDict.items():
-                file.write(str(m) + ': ' + str(n) + '\n')
+                f.write(str(m) + ': ' + str(n) + '\n')
 
         # Save figures
         fig1.savefig(directory + '/Correlation.png', bbox_inches='tight')

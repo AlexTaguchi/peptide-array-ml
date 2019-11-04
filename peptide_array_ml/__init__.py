@@ -25,18 +25,19 @@ class NeuralNetwork():
 
     def __init__(self, chem_encoder=False, encoder_nodes=10, evaluation_mode=False,
                  filename='data/FNR.csv', hidden_layers=2, hidden_nodes=100, train_fraction=0.9,
-                 train_steps=50000, weight_folder='fits', weight_save=False):
+                 train_steps=50000, train_test_split=[], weight_folder='fits', weight_save=False):
         """Parameter and file structure initialization
         
         Keyword Arguments:
             chem_encoder {bool} -- use chem.txt as amino acid representation (default: {False})
             encoder_nodes {int} -- number of features to describe amino acids (default: {10})
-            evaluation_mode {bool} -- path to pretrained 'Model.pth' neural network (default: {False})
+            evaluation_mode {str} -- path to pretrained 'Model.pth' neural network (default: {False})
             filename {str} -- path to sequence and binding data (default: {'data/FNR.csv'})
             hidden_layers {int} -- number of hidden layers in neural network (default: {2})
             hidden_nodes {int} -- number of nodes per hidden layer of neural network (default: {100})
             train_fraction {float} -- fraction of non-saturated data for training (default: {0.9})
             train_steps {int} -- number of training steps (default: {50000})
+            train_test_split {str} -- path to train (0) and test (1) split assignments (default: {[]})
             weight_folder {str} -- directory name to save weights and biases (default: {'fits'})
             weight_save {bool} -- save weights to file (default: {False})
         """
@@ -46,6 +47,7 @@ class NeuralNetwork():
         self.filename = filename
         self.hidden_layers = hidden_layers
         self.hidden_nodes = hidden_nodes
+        self.train_test_split = train_test_split
         self.evaluation_mode = evaluation_mode
         self.train_fraction = train_fraction
         self.train_steps = train_steps
@@ -62,6 +64,10 @@ class NeuralNetwork():
         
         # Store parameter settings
         self.settings = {key: value for key, value in locals().items() if key != 'self'}
+
+        # Import train and test split assignments
+        if self.train_test_split:
+            self.train_test_split = np.loadtxt(self.train_test_split, dtype=int)
 
         # Generate file structure
         current_date = datetime.datetime.today().strftime('%Y-%m-%d')
@@ -131,19 +137,26 @@ class NeuralNetwork():
 
         # Combine sequence and data
         train_test = np.concatenate((sequences, np.transpose([data])), axis=1)
-        train_test = train_test[train_test[:, -1].argsort()]
 
-        # Shuffle all data excluding the top 2%
-        exclude_value = 0.98 * (train_test[-1, -1] - train_test[0, -1]) + train_test[0, -1]
-        exclude_ind = np.abs(train_test[:, -1] - exclude_value).argmin()
-        np.random.shuffle(train_test[:exclude_ind])
+        # Randomly generate split between train and test sets if not manually specified
+        if not len(self.train_test_split):
 
-        # Train and test sets
-        train_xy = np.copy(train_test[:int(self.train_fraction * exclude_ind), :])
-        train_xy = train_xy[train_xy[:, -1].argsort()]
-        test_xy = np.copy(train_test[int(self.train_fraction * exclude_ind):, :])
+            # Exclude saturated binding values from train set
+            saturation_threshold = 0.98 * np.ptp(train_test[:, -1]) + min(train_test[:, -1])
+
+            # Assign train and test set indices
+            nonsaturated = np.where(train_test[:, -1] <= saturation_threshold)[0]
+            train_size = int(self.train_fraction * len(nonsaturated))
+            train_split = np.random.choice(nonsaturated, train_size, replace=False)
+            self.train_test_split = np.ones(len(data), dtype=int)
+            self.train_test_split[train_split] = 0
+
+        # Split into train and test sets
+        train_xy = np.copy(train_test[[x == 0 for x in self.train_test_split]])
+        test_xy = np.copy(train_test[[x == 1 for x in self.train_test_split]])
 
         # Find bin indices for uniformly distributed batch gradient descent
+        train_xy = train_xy[train_xy[:, -1].argsort()]
         bin_data = np.linspace(train_xy[0][-1], train_xy[-1][-1], 100)
         bin_ind = [np.argmin(np.abs(x - train_xy[:, -1])) for x in bin_data]
         bin_ind = np.append(bin_ind, len(train_xy))
@@ -204,10 +217,12 @@ class NeuralNetwork():
             net.load_state_dict(torch.load(self.evaluation_mode))
 
             # Run test set through optimized neural network and determine correlation coefficient
-            test_prediction = torch.squeeze(net(torch.cat((train_seq, test_seq)))).data.numpy()
-            test_real = torch.cat((train_data, test_data)).data.numpy()
+            test_prediction = torch.squeeze(net(test_seq)).data.numpy()
+            test_real = test_data.data.numpy()
             correlation = np.corrcoef(test_real, test_prediction)[0, 1]
             print('Correlation Coefficient: %.3f' % correlation)
+
+            return (test_real, test_prediction)
 
         else:
 
@@ -323,6 +338,10 @@ class NeuralNetwork():
             # Create path to new sample folder
             directory = f'{run_folder}/Sample{str(abs(sample))}'
             os.makedirs(directory)
+
+            # Save train test split
+            with open(f'{directory}/TrainTestSplit.txt', 'w') as f:
+                f.writelines(f'{x}\n' for x in self.train_test_split)
 
             # Save weights and biases to csv files
             if self.encoder_nodes:

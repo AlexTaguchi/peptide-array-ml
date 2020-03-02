@@ -12,3 +12,4 @@
 | TNFa.csv        | CIM, Tumor Necrosis Factor Alpha          |
 | TNFR.csv        | CIM, Tumor Necrosis Factor Alpha Receptor |
 | Transferrin.csv | CIM, Transferrin                          |
+| chem.txt        | Amino acid chemical properties            |

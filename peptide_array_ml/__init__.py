@@ -19,7 +19,7 @@ class NeuralNetwork():
         Input: Sequence represented as [residue number x amino acid] matrix
         Model:
             [1] Linear encoder converts one-hot amino acid representation to dense representation
-            [2] Feed-forward neural network with two hidden layers
+            [2] Feed-forward neural network with multiple hidden layers
             [3] Output regression layer predicts binding value
     """
 
@@ -29,7 +29,7 @@ class NeuralNetwork():
         """Parameter and file structure initialization
         
         Keyword Arguments:
-            chem_encoder {bool} -- use chem.txt as amino acid representation (default: {False})
+            chem_encoder {str} -- path to amino acid properties to use as encoder (default: {False})
             encoder_nodes {int} -- number of features to describe amino acids (default: {10})
             evaluation_mode {str} -- path to pretrained 'Model.pth' neural network (default: {False})
             filename {str} -- path to sequence and binding data (default: {'data/FNR.csv'})
@@ -37,7 +37,7 @@ class NeuralNetwork():
             hidden_nodes {int} -- number of nodes per hidden layer of neural network (default: {100})
             train_fraction {float} -- fraction of non-saturated data for training (default: {0.9})
             train_steps {int} -- number of training steps (default: {50000})
-            train_test_split {str} -- path to train (0) and test (1) split assignments (default: {[]})
+            train_test_split {list} -- train (0) and test (1) split assignments (default: {[]})
             weight_folder {str} -- directory name to save weights and biases (default: {'fits'})
             weight_save {bool} -- save weights to file (default: {False})
         """
@@ -57,10 +57,10 @@ class NeuralNetwork():
         # Assert that encoder_nodes is set correctly
         if self.chem_encoder:
             with open('data/chem.txt', 'r') as f:
-                f.readline()
-                count = len(f.readline().strip().split('\t'))
-                assert self.encoder_nodes == count, f'Set encoder_nodes to number {count}!'
-            del count, f
+                properties = f.readlines()[-1].split()
+                properties = len([x for x in properties if x.lstrip('-').replace('.', '', 1).isdigit()])
+                assert self.encoder_nodes == properties, f'Set encoder_nodes={properties} to match chem_encoder!'
+            del properties, f
         
         # Store parameter settings
         self.settings = {key: value for key, value in locals().items() if key != 'self'}
@@ -115,9 +115,12 @@ class NeuralNetwork():
         data = pd.read_csv(self.filename, header=None)
         data[0].replace(re.compile(f'[^{amino_acids}]'), '', inplace=True)
 
+        # Average binding data for identical sequences
+        data = data.groupby(0).mean().reset_index()
+
         # Remove trailing GSG from sequences
         if sum(data[0].str[-3:] == 'GSG') / len(data) > 0.9:
-            data[0] = data[0].str[:-3]    
+            data[0] = data[0].str[:-3]
 
         # Remove sequences shorter than 3 residues in length
         data.drop(data[0].index[data[0].str.len() < 3].tolist(), inplace=True)

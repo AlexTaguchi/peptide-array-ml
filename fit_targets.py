@@ -1,9 +1,11 @@
-from multiprocessing import Pool
+# Model all targets with neural network
+
+# Import modules
 import os
 from peptide_array_ml import NeuralNetwork
 
-targets = [x for x in os.listdir('data') if x[-4:] == '.csv']
-
+# Fit target data
+targets = [x for x in os.listdir('data') if x.split('.')[-1] == 'csv']
 for target in targets:
-    nn = NeuralNetwork(filename=f'data/{target}', train_steps=50000, weight_save=True, encoder_nodes=10)
+    nn = NeuralNetwork(filename=f'data/{target}', weight_save=True)
     nn.fit()

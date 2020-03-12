@@ -1,4 +1,4 @@
-# Model single target multiple times in parallel with neural network
+# Model single peptide array multiple times in parallel
 
 # Import modules
 from multiprocessing import Pool

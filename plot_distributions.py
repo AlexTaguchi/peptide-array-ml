@@ -50,9 +50,9 @@ for i, target in targets.items():
     amino_dist = amino_dist.transpose()
     amino_dist.loc[:, :'P'].plot(ax=ax2[i])
     amino_dist.loc[:, 'Q':].plot(ax=ax2[i], linestyle='dashed')
-    ax2[i].set_title(f'Peptide Array {i + 1}', fontsize=17)
+    ax2[i].set_title(f'Peptide Array {i + 1}', fontsize=22)
     ax2[i].set_ylim([-0.01, 0.5])
-    ax2[i].tick_params(axis='both', which='major', labelsize=12)
+    ax2[i].tick_params(axis='both', which='major', labelsize=17)
 
 # Finalize length distribution plot
 ax1.set_xlabel('Sequence Length', fontsize=12)
@@ -61,15 +61,15 @@ fig1.legend(['Peptide Array 1','Peptide Array 2','Peptide Array 3'],
             loc='upper left', bbox_to_anchor=(0.15, 0.85))
 
 # Finalize amino acid distribution plots
-ax2[0].set_ylabel('Frequency', fontsize=15)
+ax2[0].set_ylabel('Frequency', fontsize=20)
 ax2[0].set_xticks(range(1, 12, 2))
 ax2[1].set_xticks(range(2, 13, 2))
 ax2[2].set_xticks(range(2, 13, 2))
 ax2[1].set_yticks([])
 ax2[2].set_yticks([])
-ax2[1].set_xlabel('Sequence Position', fontsize=17)
+ax2[1].set_xlabel('Sequence Position', fontsize=20)
 ax2[0].get_legend().remove()
 ax2[1].get_legend().remove()
-ax2[2].legend(loc='center left', bbox_to_anchor=(1.05, 0.5))
-fig2.subplots_adjust(left=0.07, right=0.92, wspace=0.0)
+ax2[2].legend(loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=17)
+fig2.subplots_adjust(left=0.07, right=0.9, wspace=0.0)
 plt.show()

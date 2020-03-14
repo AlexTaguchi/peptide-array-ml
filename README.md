@@ -10,7 +10,7 @@ Neural network modeling of peptide sequence binding data
 ### Script Usage
 - `plot_distributions.py`: Plot length and amino acid distributions (Figures S_ and S_)
   <p align="center">
-    <img src="figures/length_distributions.png" alt="length_distributions" height="300">
+    <img src="figures/length_distributions.png" alt="length_distributions" height="400">
   </p>
   <img src="figures/amino_acid_distributions.png" alt="amino_acid_distributions">
 

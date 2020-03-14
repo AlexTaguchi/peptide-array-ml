@@ -52,6 +52,7 @@ for i, target in targets.items():
     amino_dist.loc[:, 'Q':].plot(ax=ax2[i], linestyle='dashed')
     ax2[i].set_title(f'Peptide Array {i + 1}', fontsize=17)
     ax2[i].set_ylim([-0.01, 0.5])
+    ax2[i].tick_params(axis='both', which='major', labelsize=12)
 
 # Finalize length distribution plot
 ax1.set_xlabel('Sequence Length', fontsize=12)
@@ -66,7 +67,7 @@ ax2[1].set_xticks(range(2, 13, 2))
 ax2[2].set_xticks(range(2, 13, 2))
 ax2[1].set_yticks([])
 ax2[2].set_yticks([])
-ax2[1].set_xlabel('Sequence Position', fontsize=15)
+ax2[1].set_xlabel('Sequence Position', fontsize=17)
 ax2[0].get_legend().remove()
 ax2[1].get_legend().remove()
 ax2[2].legend(loc='center left', bbox_to_anchor=(1.05, 0.5))

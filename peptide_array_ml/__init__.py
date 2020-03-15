@@ -85,8 +85,8 @@ class NeuralNetwork():
 
             # Create run folder
             old_runs = sum(('Run' in x for x in os.listdir(date_folder)))
-            run_folder = date_folder + '/Run' + str(old_runs + 1) + '-' + filename.split('/')[-1][:-4]
-            os.makedirs(run_folder)
+            self.run_folder = date_folder + '/Run' + str(old_runs + 1) + '-' + filename.split('/')[-1][:-4]
+            os.makedirs(self.run_folder)
 
     def fit(self, sample=1):
         """Train or evaluate neural network
@@ -331,15 +331,15 @@ class NeuralNetwork():
         if self.weight_save:
 
             # Create path to date folder
-            date = sorted([x for x in os.listdir(self.weight_folder) if ''.join(x.split('-')).isdigit()])[-1]
-            date_folder = f'{self.weight_folder}/{date}'
+            # date = sorted([x for x in os.listdir(self.weight_folder) if ''.join(x.split('-')).isdigit()])[-1]
+            # date_folder = f'{self.weight_folder}/{date}'
 
             # Create path to run folder
-            old_runs = sum(('Run' in x for x in os.listdir(date_folder)))
-            run_folder = f'{self.weight_folder}/{date}/Run{str(old_runs)}-{self.filename.split("/")[-1][:-4]}'
+            # old_runs = sum(('Run' in x for x in os.listdir(date_folder)))
+            # run_folder = f'{self.weight_folder}/{date}/Run{str(old_runs)}-{self.filename.split("/")[-1][:-4]}'
 
             # Create path to new sample folder
-            directory = f'{run_folder}/Sample{str(abs(sample))}'
+            directory = f'{self.run_folder}/Sample{str(abs(sample))}'
             os.makedirs(directory)
 
             # Save train test split
@@ -367,7 +367,7 @@ class NeuralNetwork():
                     f.write(f'Step {loss[0]:5d}: train|test loss - {loss[1]:.5f}|{loss[2]:.5f}\n')
 
             # Save parameter settings
-            with open(f'{run_folder}/Parameters.txt', 'w') as f:
+            with open(f'{self.run_folder}/Parameters.txt', 'w') as f:
                 f.write('#~~~ARCHITECTURE~~~#\n')
                 f.write(str(net))
                 f.write('\n\n#~~~PARAMETERS~~~#\n')

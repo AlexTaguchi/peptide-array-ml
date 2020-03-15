@@ -23,12 +23,9 @@ train_test_split = [0 if i in train_test_split else 1 for i in range(len(data[0]
 # Fit model to targets
 specificity = []
 for target in targets:
-    nn = NeuralNetwork(filename=f'data/{target}', train_test_split=train_test_split, weight_save=True)
+    nn = NeuralNetwork(filename=f'data/{target}', train_test_split=train_test_split, weight_save=True, train_steps=5000)
     nn.fit()
-    date = datetime.datetime.today().strftime('%Y-%m-%d')
-    runs = [x for x in os.listdir(f'fits/{date}') if 'Run' in x]
-    run = sorted(runs, key=lambda x: int(re.findall(r'\d+', x)[0]))[-1]
-    nn.evaluation_mode = os.path.join('fits', date, run, 'Sample1/Model.pth')
+    nn.evaluation_mode = os.path.join(nn.run_folder, 'Sample1/Model.pth')
     specificity.append(nn.fit()[2:])
 
 # Plot measured and predicted target specificity

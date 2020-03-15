@@ -15,15 +15,12 @@ targets = ['Diaphorase', 'Ferredoxin', 'FNR', 'PD1', 'PDL1', 'TNFa', 'TNFR', 'Tr
 for i, target in enumerate(targets):
 
     # Train model
-    nn = NeuralNetwork(filename=f'data/{target}.csv', weight_save=True, train_steps=50000)
+    nn = NeuralNetwork(filename=f'data/{target}.csv', weight_save=True)
     nn.fit()
 
     # Read in train and test loss
-    date = datetime.datetime.today().strftime('%Y-%m-%d')
-    runs = [x for x in os.listdir(f'fits/{date}') if 'Run' in x]
-    run = sorted(runs, key=lambda x: int(re.findall(r'\d+', x)[0]))[-1]
     loss = [[], []]
-    with open(os.path.join('fits', date, run, 'Sample1/Loss.txt'), 'r') as lines:
+    with open(os.path.join(nn.run_folder, 'Sample1/Loss.txt'), 'r') as lines:
         for line in lines:
             line = line.split()[-1].split('|')
             loss[0].append(float(line[0]))
@@ -37,5 +34,5 @@ for i, target in enumerate(targets):
 # Show plots
 ax[1, 0].set_ylabel('Mean Squared Error Loss', fontsize=18)
 ax[2, 1].set_xlabel('Training Step', fontsize=18)
-fig.subplots_adjust(left=0.1, right=0.95, hspace=0.3)
+fig.subplots_adjust(left=0.1, bottom=0.08, right=0.95, top=0.95, hspace=0.35)
 plt.show()

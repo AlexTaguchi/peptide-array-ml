@@ -1,4 +1,4 @@
-# Model all peptide array binding values
+# Model peptide array binding values with neural network
 
 # Import modules
 import os

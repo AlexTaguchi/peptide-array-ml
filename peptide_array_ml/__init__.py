@@ -66,8 +66,9 @@ class NeuralNetwork():
         self.settings = {key: value for key, value in locals().items() if key != 'self'}
 
         # Import train and test split assignments
-        if self.train_test_split:
-            self.train_test_split = np.loadtxt(self.train_test_split, dtype=int)
+        if len(self.train_test_split):
+            self.train_test_split = np.array(self.train_test_split, dtype=int)
+            assert set(self.train_test_split) == {0, 1}, 'Only 0 and 1 allowed in train_test_split!'
 
         # Generate file structure
         current_date = datetime.datetime.today().strftime('%Y-%m-%d')
@@ -115,15 +116,12 @@ class NeuralNetwork():
         data = pd.read_csv(self.filename, header=None)
         data[0].replace(re.compile(f'[^{amino_acids}]'), '', inplace=True)
 
-        # Average binding data for identical sequences
-        data = data.groupby(0).mean().reset_index()
+        # Check that there are no identical sequences
+        assert len(data) == len(data.groupby(0).mean()), 'Duplicate sequences found!'
 
         # Remove trailing GSG from sequences
         if sum(data[0].str[-3:] == 'GSG') / len(data) > 0.9:
             data[0] = data[0].str[:-3]
-
-        # Remove sequences shorter than 3 residues in length
-        data.drop(data[0].index[data[0].str.len() < 3].tolist(), inplace=True)
 
         # Assign binary vector to each amino acid
         amino_dict = {n: m for (m, n) in enumerate(amino_acids)}
@@ -220,12 +218,14 @@ class NeuralNetwork():
             net.load_state_dict(torch.load(self.evaluation_mode))
 
             # Run test set through optimized neural network and determine correlation coefficient
-            test_prediction = torch.squeeze(net(test_seq)).data.numpy()
+            train_real = train_data.data.numpy()
             test_real = test_data.data.numpy()
+            train_prediction = torch.squeeze(net(train_seq)).data.numpy()
+            test_prediction = torch.squeeze(net(test_seq)).data.numpy()
             correlation = np.corrcoef(test_real, test_prediction)[0, 1]
             print('Correlation Coefficient: %.3f' % correlation)
 
-            return (test_real, test_prediction)
+            return (train_real, train_prediction, test_real, test_prediction)
 
         else:
 
@@ -376,8 +376,10 @@ class NeuralNetwork():
 
             # Save figures
             fig1.savefig(f'{directory}/Correlation.png', bbox_inches='tight')
+            plt.close(fig1)
             if self.encoder_nodes and not self.chem_encoder:
                 fig2.figure.savefig(f'{directory}/Similarity.png', bbox_inches='tight')
+                plt.close()
 
             # Save model
             torch.save(net.state_dict(), f'{directory}/Model.pth')

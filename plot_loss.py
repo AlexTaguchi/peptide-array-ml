@@ -11,11 +11,11 @@ import re
 fig, ax = plt.subplots(3, 3)
 
 # Fit target data
-targets = [x for x in os.listdir('data') if x.split('.')[-1] == 'csv']
+targets = ['Diaphorase', 'Ferredoxin', 'FNR', 'PD1', 'PDL1', 'TNFa', 'TNFR', 'Transferrin', 'Fc']
 for i, target in enumerate(targets):
 
     # Train model
-    nn = NeuralNetwork(filename=f'data/{target}', weight_save=True)
+    nn = NeuralNetwork(filename=f'data/{target}.csv', weight_save=True, train_steps=50000)
     nn.fit()
 
     # Read in train and test loss
@@ -30,11 +30,12 @@ for i, target in enumerate(targets):
             loss[1].append(float(line[1]))
     
     # Plot train and test loss
-    ax[i//3, i%3].plot(loss[0][1:])
-    ax[i//3, i%3].plot(loss[1][1:])
-    ax[i//3, i%3].set_title(target.split('.')[0])
+    ax[i//3, i%3].plot(list(range(0, 50000, 100)), loss[0][1:])
+    ax[i//3, i%3].plot(list(range(0, 50000, 100)), loss[1][1:])
+    ax[i//3, i%3].set_title(target.split('.')[0], fontsize=20)
 
 # Show plots
-ax[1, 0].set_ylabel('Mean Squared Error Loss')
-ax[2, 1].set_xlabel('Training Step')
+ax[1, 0].set_ylabel('Mean Squared Error Loss', fontsize=18)
+ax[2, 1].set_xlabel('Training Step', fontsize=18)
+fig.subplots_adjust(left=0.1, right=0.95, hspace=0.3)
 plt.show()

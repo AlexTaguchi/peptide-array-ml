@@ -2,6 +2,7 @@
 
 # Import modules
 import matplotlib.pyplot as plt
+import numpy as np
 import os
 import pandas as pd
 import re
@@ -11,15 +12,15 @@ fig1, ax1 = plt.subplots()
 fig2, ax2 = plt.subplots(1, 3)
 
 # Set representative peptide arrays:
-# 1. Transferrin - Transferrin
-# 2. Diaphorase - Diaphorase, Ferredoxin, FNR
-# 3. Fc - Fc, PD1, PDL1, TNFa, TNFR
-targets = {1: 'data/Transferrin.csv',
-           2: 'data/Diaphorase.csv',
-           3: 'data/Fc.csv'}
+# HT-V13: Diaphorase - Diaphorase, Ferredoxin, FNR
+# CIMw189-s9: Fc - Fc, PD1, PDL1, TNFa, TNFR
+# CIMw174-s3: Transferrin - Transferrin
+targets = {'HT-V13': 'data/Diaphorase.csv',
+           'CIMw189-s9': 'data/Fc.csv',
+           'CIMw174-s3': 'data/Transferrin.csv'}
 
 # Plot length and amino acid distributions of targets
-for i, target in targets.items():
+for i, (array, target) in enumerate(targets.items()):
 
     # Import and clean sequence data
     data = pd.read_csv(target, header=None)
@@ -28,6 +29,9 @@ for i, target in targets.items():
     # Remove trailing GSG from sequences
     if sum(data[0].str[-3:] == 'GSG') / len(data) > 0.9:
         data[0] = data[0].str[:-3]
+
+    # Report mean length and standard deviation
+    print(f'{array} lengths: {np.mean(data[0].str.len()):.2f}+/-{np.std(data[0].str.len()):.2f}')
 
     # Plot length distribution
     lengths = pd.Series({position: 0 for position in range(3, 14)})
@@ -46,18 +50,17 @@ for i, target in targets.items():
     amino_dist /= len(data)
 
     # Plot amino acid distribution
-    i -= 1
     amino_dist = amino_dist.transpose()
     amino_dist.loc[:, :'P'].plot(ax=ax2[i])
     amino_dist.loc[:, 'Q':].plot(ax=ax2[i], linestyle='dashed')
-    ax2[i].set_title(f'Peptide Array {i + 1}', fontsize=22)
+    ax2[i].set_title(f'{array}', fontsize=22)
     ax2[i].set_ylim([-0.01, 0.5])
     ax2[i].tick_params(axis='both', which='major', labelsize=17)
 
 # Finalize length distribution plot
 ax1.set_xlabel('Sequence Length', fontsize=12)
 ax1.set_ylabel('Frequency', fontsize=12)
-fig1.legend(['Peptide Array 1','Peptide Array 2','Peptide Array 3'],
+fig1.legend(['HT-V13','CIMw189-s9','CIMw174-s3'],
             loc='upper left', bbox_to_anchor=(0.15, 0.85))
 
 # Finalize amino acid distribution plots

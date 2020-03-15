@@ -15,7 +15,3 @@ Neural network modeling of peptide sequence binding data
 - **plot_specificity.py**: Plot measured and predicted binding specificity between two targets.
 - **plot_loss.py**: Plot loss during model training.
 - **plot_distributions.py**: Plot length and amino acid distributions of the peptide arrays.
-  <p align="center">
-    <img src="figures/length_distributions.png" alt="length_distributions" height="400">
-  </p>
-  <img src="figures/amino_acid_distributions.png" alt="amino_acid_distributions">

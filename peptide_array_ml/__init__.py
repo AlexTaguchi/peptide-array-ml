@@ -330,14 +330,6 @@ class NeuralNetwork():
         # Save run to file
         if self.weight_save:
 
-            # Create path to date folder
-            # date = sorted([x for x in os.listdir(self.weight_folder) if ''.join(x.split('-')).isdigit()])[-1]
-            # date_folder = f'{self.weight_folder}/{date}'
-
-            # Create path to run folder
-            # old_runs = sum(('Run' in x for x in os.listdir(date_folder)))
-            # run_folder = f'{self.weight_folder}/{date}/Run{str(old_runs)}-{self.filename.split("/")[-1][:-4]}'
-
             # Create path to new sample folder
             directory = f'{self.run_folder}/Sample{str(abs(sample))}'
             os.makedirs(directory)

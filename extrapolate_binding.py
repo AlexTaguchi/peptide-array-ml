@@ -13,7 +13,8 @@ import re
 fig, ax = plt.subplots(3, 3)
 
 # Extrapolate target data
-targets = ['Diaphorase', 'Ferredoxin', 'FNR', 'PD1', 'PDL1', 'TNFa', 'TNFR', 'Transferrin', 'Fc']
+targets = ['Diaphorase.csv', 'Ferredoxin.csv', 'FNR.csv', 'PD1.csv',
+           'PDL1.csv', 'TNFa.csv', 'TNFR.csv', 'Transferrin.csv', 'Fc.csv']
 for i, target in enumerate(targets):
 
     # Limit training set to peptides within five-fold of the weakest binder + 100
@@ -38,7 +39,8 @@ for i, target in enumerate(targets):
     train_real, train_pred, test_real, test_pred = nn.fit()
     ax[i//3, i%3].scatter(train_real, train_pred, 1)
     ax[i//3, i%3].scatter(test_real, test_pred, 1)
-    ax[i//3, i%3].set_title(target.split('.')[0] if target != 'TNFa' else 'TNFα', fontname='Arial', fontsize=15)
+    ax[i//3, i%3].set_title(target.split('.')[0] if target != 'TNFa.csv' else 'TNFα',
+                            fontname='Arial', fontsize=15)
     ax[i//3, i%3].xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
     ax[i//3, i%3].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 

@@ -3,6 +3,7 @@
 # Import modules
 import datetime
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 import os
 import pandas as pd
 from peptide_array_ml import NeuralNetwork
@@ -12,7 +13,7 @@ import re
 fig, ax = plt.subplots(3, 3)
 
 # Extrapolate target data
-targets = [x for x in os.listdir('data') if x.split('.')[-1] == 'csv']
+targets = ['Diaphorase', 'Ferredoxin', 'FNR', 'PD1', 'PDL1', 'TNFa', 'TNFR', 'Transferrin', 'Fc']
 for i, target in enumerate(targets):
 
     # Limit training set to peptides within five-fold of the weakest binder + 100
@@ -37,9 +38,12 @@ for i, target in enumerate(targets):
     train_real, train_pred, test_real, test_pred = nn.fit()
     ax[i//3, i%3].scatter(train_real, train_pred, 1)
     ax[i//3, i%3].scatter(test_real, test_pred, 1)
-    ax[i//3, i%3].set_title(target.split('.')[0])
+    ax[i//3, i%3].set_title(target.split('.')[0] if target != 'TNFa' else 'TNFα', fontname='Arial', fontsize=15)
+    ax[i//3, i%3].xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    ax[i//3, i%3].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
 # Show plots
-ax[2, 1].set_xlabel('Log10 Measured Binding Value')
-ax[1, 0].set_ylabel('Log10 Predicted Binding Value')
-plt.show()
+ax[2, 1].set_xlabel(r'Log$_{10}$(Measured Binding Value)', fontname='Arial', fontsize=20)
+ax[1, 0].set_ylabel(r'Log$_{10}$(Predicted Binding Value)', fontname='Arial', fontsize=20)
+fig.set_size_inches((10, 10), forward=False)
+plt.savefig('figures/extrapolations.jpg', dpi=300)

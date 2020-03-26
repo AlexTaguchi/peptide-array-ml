@@ -75,4 +75,9 @@ ax2[0].get_legend().remove()
 ax2[1].get_legend().remove()
 ax2[2].legend(loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=17)
 fig2.subplots_adjust(left=0.07, right=0.9, wspace=0.0)
-plt.show()
+
+# Save plots
+fig2.set_size_inches((15, 10), forward=False)
+plt.savefig('figures/amino_acid_distributions.jpg', dpi=300)
+plt.close()
+plt.savefig('figures/length_distributions.jpg', dpi=300)

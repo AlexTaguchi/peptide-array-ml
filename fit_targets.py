@@ -19,7 +19,7 @@ for i, target in enumerate(targets):
     x, y = nn.fit()[2:]
 
     # Calculate point density
-    xy = np.vstack([x,y])
+    xy = np.vstack([x, y])
     z = gaussian_kde(xy)(xy)
     index = z.argsort()
     x, y, z = x[index], y[index], z[index]

@@ -16,16 +16,21 @@ peptide_array = pd.read_excel('data/HT-V13.xlsx', index_col=0, skiprows=1,
 for i, target in enumerate(['Diaphorase', 'Ferredoxin', 'FNR']):
     data[target] = np.log10(peptide_array.iloc[:, 2*i:2*i+2].values + 100)
 
-# Read HT-V13 peptide array data
+# Read CIMw189-s9 peptide array data
 peptide_array = pd.read_excel('data/CIMw189-s9.xlsx', index_col=0, skiprows=6,
                               usecols=[2, 4, 5, 9, 10, 13, 14, 16, 17, 25, 26])
 for i, target in enumerate(['PDL1', 'PD1', 'TNFα', 'TNFR', 'Fc']):
     data[target] = np.log10(peptide_array.iloc[:, 2*i:2*i+2].values + 100)
 
+# Read CIMw174-s3 peptide array data
+peptide_array = pd.read_excel('data/CIMw174-s3.xlsx', index_col=0, skiprows=3,
+                              usecols=[1, 5, 6])
+for i, target in enumerate(['Transferrin']):
+    data[target] = np.log10(peptide_array.iloc[:, 2*i:2*i+2].values + 100)
+
 # Plot self correlations
 fig, ax = plt.subplots(3, 3)
-# targets = ['Diaphorase', 'Ferredoxin', 'FNR', 'PD1', 'PDL1', 'TNFα', 'TNFR', 'Transferrin', 'Fc']
-targets = ['Diaphorase', 'Ferredoxin', 'FNR', 'PD1', 'PDL1', 'TNFα', 'TNFR', 'Fc']
+targets = ['Diaphorase', 'Ferredoxin', 'FNR', 'PD1', 'PDL1', 'TNFα', 'TNFR', 'Transferrin', 'Fc']
 for i, target in enumerate(targets):
 
     # Calculate point density

@@ -104,4 +104,6 @@ venv.bak/
 .mypy_cache/
 
 # peptide-array-ml
+fits/*
+!fits/2020-01-01
 .DS_Store

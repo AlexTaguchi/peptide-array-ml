@@ -20,7 +20,6 @@ for i, target_pair in enumerate(combinations(target_group, 2)):
 
     # Import binding datasets
     data = [pd.read_csv(f'data/{target}.csv', header=None)[1].values for target in target_pair]
-    data = np.log10(np.vstack(data) + 100)
 
     # Randomly split into train and test sets
     train_test_split = np.random.choice(len(data[0]), 90000, replace=False)
@@ -55,7 +54,6 @@ for i, target_pair in enumerate(combinations(target_group, 2)):
 
     # Import binding datasets
     data = [pd.read_csv(f'data/{target}.csv', header=None)[1].values for target in target_pair]
-    data = np.log10(np.vstack(data) + 100)
 
     # Randomly split into train and test sets
     train_test_split = np.random.choice(len(data[0]), 90000, replace=False)
@@ -69,10 +67,10 @@ for i, target_pair in enumerate(combinations(target_group, 2)):
         specificity.append(nn.fit()[2:])
 
     # Plot measured and predicted target specificity
-    colors = 3 * (specificity[0][0] - specificity[1][0])
+    colors = specificity[0][0] - specificity[1][0]
     target_pair = [target if target != 'TNFa' else 'TNFα' for target in target_pair]
-    ax[i%3, 2*(i//3) + 0].scatter(specificity[0][0], specificity[1][0], 3, c=colors)
-    ax[i%3, 2*(i//3) + 1].scatter(specificity[0][1], specificity[1][1], 3, c=colors)
+    ax[i%3, 2*(i//3) + 0].scatter(specificity[0][0], specificity[1][0], 3, c=colors, vmin=-1, vmax=1)
+    ax[i%3, 2*(i//3) + 1].scatter(specificity[0][1], specificity[1][1], 3, c=colors, vmin=-1, vmax=1)
     ax[i%3, 2*(i//3) + 0].set_xlabel(target_pair[0].split('.')[0], fontname='Arial', fontsize=15)
     ax[i%3, 2*(i//3) + 1].set_xlabel(target_pair[0].split('.')[0], fontname='Arial', fontsize=15)
     ax[i%3, 2*(i//3) + 0].set_ylabel(target_pair[1].split('.')[0], fontname='Arial', fontsize=15)

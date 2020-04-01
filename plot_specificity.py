@@ -21,6 +21,9 @@ for i in range(3):
 ax[0, 0].text(-0.3, 1.1, 'A', transform=ax[0, 0].transAxes, fontname='Arial', fontsize=35)
 ax[0, 2].text(-0.3, 1.1, 'B', transform=ax[0, 2].transAxes, fontname='Arial', fontsize=35)
 
+# Preallocate correlation coefficients
+correlations = []
+
 # Plot binding specificities for Diaphorase, FNR, and Ferredoxin
 for i, target_pair in enumerate(combinations(['Diaphorase', 'FNR', 'Ferredoxin'], 2)):
 
@@ -46,6 +49,9 @@ for i, target_pair in enumerate(combinations(['Diaphorase', 'FNR', 'Ferredoxin']
     x, y, z = x[index], y[index], z[index]
     padding = 0.05 * (max(x) - min(x))
     limits = [min(x) - padding, max(x) + padding]
+
+    # Record Pearson correlation coefficient
+    correlations.append(f'{target_pair[0]}-{target_pair[1]}: {np.corrcoef(x, y)[0, 1]:.4f}')
 
     # Plot measured and predicted log binding ratios
     ax[i, 0].scatter(x, y, c=z, s=2, edgecolor='')
@@ -78,6 +84,9 @@ for i, target_pair in enumerate(combinations(['PD1', 'PDL1', 'TNFR', 'TNFa'], 2)
     x, y, z = x[index], y[index], z[index]
     padding = 0.05 * (max(x) - min(x))
     limits = [min(x) - padding, max(x) + padding]
+
+    # Record Pearson correlation coefficient
+    correlations.append(f'{target_pair[0]}-{target_pair[1]}: {np.corrcoef(x, y)[0, 1]:.4f}')
     
     # Plot measured and predicted target specificity
     target_pair = [target if target != 'TNFa' else 'TNFα' for target in target_pair]
@@ -95,3 +104,8 @@ fig.text(0.04, 0.5, r'Log$_{10}$(Predicted Binding Ratios)',
 # Save plots
 fig.set_size_inches((10, 9), forward=False)
 plt.savefig('figures/specificity_fits.jpg', dpi=300)
+
+# Report Pearson correlatin coefficients
+print('\nSpecificity Pearson Correlation Coefficients')
+for correlation in correlations:
+    print(correlation)

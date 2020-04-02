@@ -23,16 +23,16 @@ class NeuralNetwork():
             [3] Output regression layer predicts binding value
     """
 
-    def __init__(self, chem_encoder=False, encoder_nodes=10, evaluation_mode=False,
-                 filename='data/FNR.csv', hidden_layers=2, hidden_nodes=100, train_fraction=0.9,
+    def __init__(self, chem_encoder=False, data='data/FNR.csv', encoder_nodes=10,
+                 evaluation_mode=False, hidden_layers=2, hidden_nodes=100, train_fraction=0.9,
                  train_steps=50000, train_test_split=[], weight_folder='fits', weight_save=False):
         """Parameter and file structure initialization
         
         Keyword Arguments:
             chem_encoder {str} -- path to amino acid properties to use as encoder (default: {False})
+            data {str/df} -- file path or dataframe of sequences and data (default: {'data/FNR.csv'})
             encoder_nodes {int} -- number of features to describe amino acids (default: {10})
             evaluation_mode {str} -- path to pretrained 'Model.pth' neural network (default: {False})
-            filename {str} -- path to sequence and binding data (default: {'data/FNR.csv'})
             hidden_layers {int} -- number of hidden layers in neural network (default: {2})
             hidden_nodes {int} -- number of nodes per hidden layer of neural network (default: {100})
             train_fraction {float} -- fraction of non-saturated data for training (default: {0.9})
@@ -44,7 +44,7 @@ class NeuralNetwork():
         # Initialize variables
         self.chem_encoder = chem_encoder
         self.encoder_nodes = encoder_nodes
-        self.filename = filename
+        self.data = data
         self.hidden_layers = hidden_layers
         self.hidden_nodes = hidden_nodes
         self.train_test_split = train_test_split
@@ -85,7 +85,8 @@ class NeuralNetwork():
 
             # Create run folder
             old_runs = sum(('Run' in x for x in os.listdir(date_folder)))
-            self.run_folder = date_folder + '/Run' + str(old_runs + 1) + '-' + filename.split('/')[-1][:-4]
+            filename = data.split('/')[-1][:-4] if isinstance(data, str) else data.name
+            self.run_folder = date_folder + '/Run' + str(old_runs + 1) + '-' + filename
             os.makedirs(self.run_folder)
 
     def fit(self, sample=1):
@@ -113,7 +114,7 @@ class NeuralNetwork():
             chem_params = 0
 
         # Import and clean sequence data where first column is the sequences followed by the binding data
-        data = pd.read_csv(self.filename, header=None)
+        data = pd.read_csv(self.data, header=None) if isinstance(self.data, str) else self.data
         data[0].replace(re.compile(f'[^{amino_acids}]'), '', inplace=True)
 
         # Check that there are no identical sequences

@@ -1,4 +1,4 @@
-# Plot comparison of measured and predicted binding specificity between targets
+# Plot measured vs predicted binding specificity between targets
 
 # Import modules
 from itertools import combinations

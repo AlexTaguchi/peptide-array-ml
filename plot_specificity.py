@@ -15,7 +15,7 @@ directory = 'fits/2020-01-01/'
 fits = {x.split('-')[1]: x for x in os.listdir(directory)}
 
 # Set up Figures A and B with column gap
-fig, ax = plt.subplots(3, 4, gridspec_kw={'hspace':0.3, 'wspace':0.25, 'width_ratios': [1, 0.2, 1, 1]})
+fig, ax = plt.subplots(3, 4, gridspec_kw={'hspace': 0.3, 'wspace': 0.25, 'width_ratios': [1, 0.2, 1, 1]})
 for i in range(3):
     ax[i, 1].set_visible(False)
 ax[0, 0].text(-0.3, 1.1, 'A', transform=ax[0, 0].transAxes, fontname='Arial', fontsize=35)
@@ -37,8 +37,8 @@ for i, target_pair in enumerate(combinations(['Diaphorase', 'FNR', 'Ferredoxin']
     # Evaluate model for target pair
     specificity = []
     for target in target_pair:
-        nn = NeuralNetwork(filename=f'data/{target}.csv', train_test_split=train_test_split,
-                            evaluation_mode=f'{directory}{fits[target]}/Sample1/Model.pth')
+        nn = NeuralNetwork(data=f'data/{target}.csv', train_test_split=train_test_split,
+                           evaluation_mode=f'{directory}{fits[target]}/Sample1/Model.pth')
         specificity.append(nn.fit()[2:])
     
     # Calculate point density
@@ -51,13 +51,18 @@ for i, target_pair in enumerate(combinations(['Diaphorase', 'FNR', 'Ferredoxin']
     limits = [min(x) - padding, max(x) + padding]
 
     # Record Pearson correlation coefficient
-    correlations.append(f'{target_pair[0]}-{target_pair[1]}: {np.corrcoef(x, y)[0, 1]:.4f}')
+    correlation = np.corrcoef(x, y)[0, 1]
+    correlations.append(f'{target_pair[0]}-{target_pair[1]}: {correlation:.3f}')
 
     # Plot measured and predicted log binding ratios
     ax[i, 0].scatter(x, y, c=z, s=2, edgecolor='')
     ax[i, 0].plot(limits, limits, 'k')
     ax[i, 0].set_xlim(limits)
     ax[i, 0].set_title(f'{target_pair[0]}-{target_pair[1]}', fontname='Arial', fontsize=15)
+
+    # Plot correlatin coefficient
+    ax[i, 0].text(0.06, 0.85, f'R={correlation:.3f}', style='italic',
+                  fontname='Arial', fontsize=15, transform=ax[i, 0].transAxes)
 
 # Plot binding specificities for PD1, PDL1, TNFR, and TNFa
 for i, target_pair in enumerate(combinations(['PD1', 'PDL1', 'TNFR', 'TNFa'], 2)):
@@ -72,8 +77,8 @@ for i, target_pair in enumerate(combinations(['PD1', 'PDL1', 'TNFR', 'TNFa'], 2)
     # Evaluate model for target pair
     specificity = []
     for target in target_pair:
-        nn = NeuralNetwork(filename=f'data/{target}.csv', train_test_split=train_test_split,
-                            evaluation_mode=f'{directory}{fits[target]}/Sample1/Model.pth')
+        nn = NeuralNetwork(data=f'data/{target}.csv', train_test_split=train_test_split,
+                           evaluation_mode=f'{directory}{fits[target]}/Sample1/Model.pth')
         specificity.append(nn.fit()[2:])
     
     # Calculate point density
@@ -86,7 +91,8 @@ for i, target_pair in enumerate(combinations(['PD1', 'PDL1', 'TNFR', 'TNFa'], 2)
     limits = [min(x) - padding, max(x) + padding]
 
     # Record Pearson correlation coefficient
-    correlations.append(f'{target_pair[0]}-{target_pair[1]}: {np.corrcoef(x, y)[0, 1]:.4f}')
+    correlation = np.corrcoef(x, y)[0, 1]
+    correlations.append(f'{target_pair[0]}-{target_pair[1]}: {correlation:.3f}')
     
     # Plot measured and predicted target specificity
     target_pair = [target if target != 'TNFa' else 'TNFα' for target in target_pair]
@@ -94,6 +100,10 @@ for i, target_pair in enumerate(combinations(['PD1', 'PDL1', 'TNFR', 'TNFa'], 2)
     ax[i%3, i//3 + 2].plot(limits, limits, 'k')
     ax[i%3, i//3 + 2].set_xlim(limits)
     ax[i%3, i//3 + 2].set_title(f'{target_pair[0]}-{target_pair[1]}', fontname='Arial', fontsize=15)
+    
+    # Plot correlatin coefficient
+    ax[i%3, i//3 + 2].text(0.06, 0.85, f'R={correlation:.3f}', style='italic',
+                           fontname='Arial', fontsize=15, transform=ax[i%3, i//3 + 2].transAxes)
 
 # Label figures
 fig.text(0.5, 0.04, r'Log$_{10}$(Measured Binding Ratios)',

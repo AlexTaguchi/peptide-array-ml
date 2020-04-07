@@ -36,7 +36,7 @@ for i, target in enumerate(['Transferrin']):
     data[target] = peptide_array.iloc[:, 2*i:2*i+2]
 
 # Plot control binding specificities for all targets
-fig, ax = plt.subplots(3, 3)
+fig, ax = plt.subplots(3, 3, gridspec_kw={'hspace': 0.3, 'wspace': 0.3})
 targets = ['Diaphorase', 'Ferredoxin', 'FNR', 'PD1',
            'PDL1', 'TNFα', 'TNFR', 'Transferrin', 'Fc']
 for i, target in enumerate(targets):
@@ -75,13 +75,18 @@ for i, target in enumerate(targets):
     limits = [min(x) - padding, max(x) + padding]
 
     # Record Pearson correlation coefficient
-    correlations.append(f'{target}: {np.corrcoef(x, y)[0, 1]:.4f}')
+    correlation = np.corrcoef(x, y)[0, 1]
+    correlations.append(f'{target}: {np.corrcoef(x, y)[0, 1]:.3f}')
 
     # Plot measured and predicted log binding ratios
     ax[i//3, i%3].scatter(x, y, c=z, s=2, edgecolor='')
     ax[i//3, i%3].plot(limits, limits, 'k')
     ax[i//3, i%3].set_xlim(limits)
     ax[i//3, i%3].set_title(f'{target}', fontname='Arial', fontsize=15)
+
+    # Plot correlatin coefficient
+    ax[i//3, i%3].text(0.06, 0.85, f'R={correlation:.3f}', style='italic',
+                       fontname='Arial', fontsize=15, transform=ax[i//3, i%3].transAxes)
 
 # Label figures
 fig.text(0.5, 0.04, r'Log$_{10}$(Measured Binding Ratios)',

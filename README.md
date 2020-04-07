@@ -12,7 +12,9 @@ Neural network modeling of peptide sequence binding data
 - **fit_targets.py**: Model all nine protein targets with a neural network. The parameter settings (`Parameters.txt`), trained models (`Model.pth`), predicted vs real correlation plots (`Correlation.png`), and amino acid similarity matrix plots (`Similarity.png`) are all saved along with other metadata in `fits/`.
 - **multifit_target.py**: Fit a neural network multiple times to the same target. This is useful for estimating the variability in model performance and predictions.
 - **extrapolate_binding.py**: Train a neural network on weaker binding values, and then use it to predict stronger binding values not previously seen by the model.
-- **plot_specificity.py**: Plot measured and predicted binding specificity between two targets.
+- **plot_specificity.py**: Plot measured and predicted binding specificity between targets.
+- **plot_specificity_control.py**: Plot measured and predicted binding specificity for replicates for the same target.
+- **plot_self_correlation.py**: Plot correlation between replicates for the same target.
 - **plot_loss.py**: Plot loss during model training.
 - **plot_distributions.py**: Plot length and amino acid distributions of the peptide arrays.
 

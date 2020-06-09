@@ -1,0 +1,22 @@
+#~~~ARCHITECTURE~~~#
+Architecture(
+  (encoder_layer): Linear(in_features=16, out_features=10, bias=False)
+  (hidden_layers): ModuleList(
+    (0): Linear(in_features=120, out_features=100, bias=True)
+    (1): Linear(in_features=100, out_features=100, bias=True)
+  )
+  (output_layer): Linear(in_features=100, out_features=1, bias=True)
+)
+
+#~~~PARAMETERS~~~#
+chem_encoder: False
+data: data/PDL1.csv
+encoder_nodes: 10
+evaluation_mode: False
+hidden_layers: 2
+hidden_nodes: 100
+train_fraction: 0.9
+train_steps: 50000
+train_test_split: []
+weight_folder: fits
+weight_save: True

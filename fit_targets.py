@@ -13,7 +13,7 @@ fig, ax = plt.subplots(3, 3)
 targets = ['Diaphorase.csv', 'Ferredoxin.csv', 'FNR.csv', 'PD1.csv',
            'PDL1.csv', 'TNFa.csv', 'TNFR.csv', 'Transferrin.csv', 'Fc.csv']
 for i, target in enumerate(targets):
-    nn = NeuralNetwork(filename=f'data/{target}', weight_save=True)
+    nn = NeuralNetwork(data=f'data/{target}', weight_save=True)
     nn.fit()
     nn.evaluation_mode = os.path.join(nn.run_folder, 'Sample1/Model.pth')
     x, y = nn.fit()[2:]

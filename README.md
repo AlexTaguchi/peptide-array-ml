@@ -18,5 +18,9 @@ Neural network modeling of peptide sequence binding data
 - **plot_loss.py**: Plot loss during model training.
 - **plot_distributions.py**: Plot length and amino acid distributions of the peptide arrays.
 
+### Reference
+Taguchi, A. T., Boyd, J., Diehnelt, C. W., Legutki, J. B., Zhao, Z-G., and Woodbury, N. W. (2020) *Combinatorial Science*, **22** (10), 500-508
+DOI: 10.1021/acscombsci.0c00003
+
 ### License
 The use of these algorithms is protected under intellectual property filed by Arizona State University

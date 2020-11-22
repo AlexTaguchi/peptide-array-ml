@@ -5,6 +5,6 @@ from multiprocessing import Pool
 from peptide_array_ml import NeuralNetwork
 
 # Fit target data
-nn = NeuralNetwork(filename='data/FNR.csv', weight_save=True)
+nn = NeuralNetwork(data='data/FNR.csv', weight_save=True)
 pool = Pool()
 pool.map(nn.fit, range(3))

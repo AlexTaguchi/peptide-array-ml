@@ -1,4 +1,5 @@
 #=== MODULES ===#
+import argparse
 import datetime
 import numpy as np
 import os
@@ -9,6 +10,44 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as functional
 import torch.optim as optim
+
+
+#=== MATLAB INTERFACE ===#
+# Import parameter settings
+parser = argparse.ArgumentParser()
+parser.add_argument('params', nargs='?')
+args = parser.parse_args()
+
+# Create dictionary of imported parameters
+parameter_imports = {}
+if args.params:
+    with open(args.params, 'r') as parameter_file:
+        for row in parameter_file.readlines():
+            key, value = row.split(',')
+            value = value[:-1]
+            if value.isdigit():
+                param = int(value)
+            elif value[0].isdigit():
+                param = float(value)
+            elif value.lower() == 'true':
+                param = True
+            elif value.lower() == 'false':
+                param = False
+            else:
+                param = value
+            parameter_imports[key] = param
+
+# Store current module and parameter scope
+module_scope = dir()
+
+# Replace parameters with imported settings
+if parameter_imports:
+    globals().update(parameter_imports)
+
+# Store parameter settings
+parameter_scope = [x for x in dir() if x not in module_scope + ['moduleScope']]
+parameter_locals = locals()
+param_dictionary = {x: parameter_locals[x] for x in parameter_scope}
 
 
 #=== FEED-FORWARD NEURAL NETWORK ===#
@@ -239,7 +278,7 @@ class NeuralNetwork():
 
                 # Select indices for training
                 train_ind = [np.random.randint(bin_ind[i], bin_ind[i + 1] + 1)
-                                for i in range(len(bin_ind) - 1)]
+                             for i in range(len(bin_ind) - 1)]
                 train_ind[-1] = train_ind[-1] - 1
 
                 # Calculate loss
@@ -311,7 +350,7 @@ class NeuralNetwork():
         fig1 = plt.figure()
         plt.scatter(test_real, test_prediction, s=1, color='b')
         plt.plot([min(test_real), max(test_real)],
-                [min(test_real), max(test_real)], color='k')
+                 [min(test_real), max(test_real)], color='k')
         plt.xlabel('Real', fontsize=15)
         plt.ylabel('Prediction', fontsize=15)
         plt.title(f'Correlation Coefficient: {correlation:.3f}', fontsize=15)
@@ -495,7 +534,7 @@ class ContextAware():
         # Import data
         peptides = pd.read_csv(self.peptides, header=None, squeeze=True)
         context = pd.read_csv(self.context, header=None)
-        binding = pd.read_csv(self.binding, header=None, squeeze=True)
+        binding = pd.read_csv(self.binding, header=None)
 
         # Clean sequences and remove trailing GSG
         peptides.replace(re.compile(f'[^{amino_acids}]'), '', inplace=True)
@@ -519,10 +558,10 @@ class ContextAware():
         if not len(self.train_test_split):
 
             # Exclude saturated binding values from train set
-            saturation_threshold = 0.9 * np.ptp(binding) + min(binding)
+            saturation_threshold = 0.98 * np.ptp(binding) + np.min(binding)
 
             # Assign train and test set indices
-            nonsaturated = np.where(binding <= saturation_threshold)[0]
+            nonsaturated = np.where(binding.max(axis=1) <= saturation_threshold)[0]
             train_size = int(self.train_fraction * len(nonsaturated))
             train_split = np.random.choice(nonsaturated, train_size, replace=False)
             self.train_test_split = np.ones(len(peptides), dtype=int)
@@ -537,11 +576,11 @@ class ContextAware():
         test_binding = np.copy(binding[[x == 1 for x in self.train_test_split]])
 
         # Find bin indices for uniformly distributed batch gradient descent
-        train_peptides = train_peptides[train_binding.squeeze().argsort()]
-        train_context = train_context[train_binding.squeeze().argsort()]
-        train_binding = train_binding[train_binding.squeeze().argsort()]
-        bin_data = np.linspace(train_binding.min(), train_binding.max(), 100)
-        bin_ind = [np.argmin(np.abs(x - train_binding)) for x in bin_data]
+        train_peptides = train_peptides[train_binding.max(axis=1).argsort()]
+        train_context = train_context[train_binding.max(axis=1).argsort()]
+        train_binding = train_binding[train_binding.max(axis=1).argsort()]
+        bin_data = np.linspace(train_binding.max(axis=1).min(), train_binding.max(axis=1).max(), 100)
+        bin_ind = [np.argmin(np.abs(x - train_binding.max(axis=1))) for x in bin_data]
         bin_ind = np.append(bin_ind, len(train_binding))
 
         # Convert to PyTorch variable tensors
@@ -556,13 +595,14 @@ class ContextAware():
         # Neural network architecture
         class Architecture(nn.Module):
 
-            def __init__(self, encoder, nodes, layers, context):
+            def __init__(self, encoder, nodes, layers, contexts, outputs):
                 super().__init__()
-                self.context = context
 
                 # Layer nodes
                 self.encoder = encoder
+                self.contexts = contexts
                 self.hidden = max_len * encoder if encoder else max_len * len(amino_acids)
+                self.outputs = outputs
 
                 # Amino acid encoder
                 if encoder and chem_params:
@@ -571,27 +611,26 @@ class ContextAware():
                     self.encoder_layer = nn.Linear(len(amino_acids), encoder, bias=False)
                 
                 # Hidden layers
-                # self.hidden_layers = nn.ModuleList([nn.Linear(self.hidden, nodes, bias=True)])
-                # self.hidden_layers.extend([nn.Linear(nodes, nodes, bias=True) for _ in range(layers - 1)])
-                self.hidden_layers = nn.ModuleList([nn.Linear(self.hidden+context, nodes, bias=True)])
-                self.hidden_layers.extend([nn.Linear(nodes+context, nodes, bias=True) for _ in range(layers - 1)])
+                self.hidden_layers = nn.ModuleList([nn.Linear(self.hidden + contexts, nodes, bias=True)])
+                self.hidden_layers.extend([nn.Linear(nodes + contexts, nodes, bias=True) for _ in range(layers - 1)])
 
                 # Output layer
-                self.output_layer = nn.Linear(nodes, 1, bias=True)
+                self.output_layer = nn.Linear(nodes + contexts, outputs, bias=True)
 
-            def forward(self, seq, cont):
+            def forward(self, sequence_batch, context_batch):
                 if self.encoder:
-                    seq = seq.view(-1, len(amino_acids))
+                    sequence_batch = sequence_batch.view(-1, len(amino_acids))
                     if chem_params:
-                        seq = torch.mm(seq, chem_params)
-                    seq = self.encoder_layer(seq)
-                    seq = seq.view(-1, max_len * self.encoder)
+                        sequence_batch = torch.mm(sequence_batch, chem_params)
+                    sequence_batch = self.encoder_layer(sequence_batch)
+                    sequence_batch = sequence_batch.view(-1, max_len * self.encoder)
                 for x in self.hidden_layers:
-                    seq = torch.cat((seq, cont.view(-1, self.context)), dim=1)
-                    seq = functional.relu(x(seq))
-                return self.output_layer(seq)
+                    sequence_batch = torch.cat((sequence_batch, context_batch), dim=1)
+                    sequence_batch = functional.relu(x(sequence_batch))
+                return self.output_layer(torch.cat((sequence_batch, context_batch), dim=1))
 
-        net = Architecture(encoder=self.encoder_nodes, nodes=self.hidden_nodes, layers=self.hidden_layers, context=1)
+        net = Architecture(encoder=self.encoder_nodes, nodes=self.hidden_nodes, layers=self.hidden_layers,
+                           contexts=train_context.shape[1], outputs=train_data.shape[1])
         print('\nARCHITECTURE:')
         print(net)
 
@@ -608,8 +647,8 @@ class ContextAware():
             # Run test set through optimized neural network and determine correlation coefficient
             train_real = train_data.data.numpy()
             test_real = test_data.data.numpy()
-            train_prediction = torch.squeeze(net(train_seq)).data.numpy()
-            test_prediction = torch.squeeze(net(test_seq)).data.numpy()
+            train_prediction = net(train_seq).data.numpy()
+            test_prediction = net(test_seq).data.numpy()
             correlation = np.corrcoef(test_real, test_prediction)[0, 1]
             print('Correlation Coefficient: %.3f' % correlation)
 
@@ -618,32 +657,18 @@ class ContextAware():
         else:
 
             # Record best network weights and loss
-            best_net = net
-            best_loss = np.inf
             losses = []
             print('\nTRAINING:')
             for i in range(self.train_steps + 1):
 
                 # Select indices for training
                 train_ind = [np.random.randint(bin_ind[i], bin_ind[i + 1] + 1)
-                                for i in range(len(bin_ind) - 1)]
+                             for i in range(len(bin_ind) - 1)]
                 train_ind[-1] = train_ind[-1] - 1
 
                 # Calculate loss
-                if i < (self.train_steps - 10):
-                    train_out = net(train_seq[train_ind], train_context[train_ind])
-                    loss = loss_function(torch.squeeze(train_out), train_data[train_ind])
-
-                else:
-                    train_out = net(train_seq[train_ind], train_context[train_ind])
-                    loss = loss_function(torch.squeeze(train_out), train_data[train_ind])
-                    # train_out = net(train_seq, train_context)
-                    # loss = loss_function(torch.squeeze(train_out), train_data)
-
-                    # # Remember the best model
-                    # if loss.item() < best_loss:
-                    #     best_loss = loss.item()
-                    #     best_net = net
+                train_out = net(train_seq[train_ind], train_context[train_ind])
+                loss = loss_function(train_out, train_data[train_ind])
 
                 # Weight optimization
                 optimizer.zero_grad()
@@ -653,45 +678,32 @@ class ContextAware():
                 # Report training progress every 100 steps
                 if i % 100 == 0:
 
-                    # Restore best model on final loop
-                    if i == (self.train_steps + 1):
-                        net = best_net
-
                     # Select 1000 training and test indices for progress report
                     train_batch = random.sample(range(train_seq.shape[0]), 1000)
                     test_batch = random.sample(range(test_seq.shape[0]), 1000)
 
                     # Train and test binding predictions
-                    train_prediction = torch.squeeze(net(train_seq[train_batch], train_context[train_batch]))
-                    test_prediction = torch.squeeze(net(test_seq[test_batch], test_context[test_batch]))
+                    train_prediction = net(train_seq[train_batch], train_context[train_batch])
+                    test_prediction = net(test_seq[test_batch], test_context[test_batch])
 
                     # Record train and test losses
                     train_loss = loss_function(train_prediction, train_data[train_batch])
                     test_loss = loss_function(test_prediction, test_data[test_batch])
                     losses.append((i, train_loss, test_loss))
 
-                    # Train and test accuracies
-                    # print(train_data.size())
-                    # print(train_prediction.size())
-                    # print(train_data[train_batch].size())
-                    train_accuracy = torch.abs(train_prediction - train_data[train_batch])
-                    # print(train_accuracy.size())
-                    # print(len(train_accuracy < 0.2))
-                    # print(len(torch.nonzero(train_accuracy < 0.2)))
-                    # print(len(train_accuracy))
-                    # e
+                    train_accuracy = torch.abs(train_prediction.flatten() - train_data[train_batch].flatten())
                     train_accuracy = len(torch.nonzero(train_accuracy < 0.2)) / len(train_accuracy)
                     
-                    test_accuracy = torch.abs(test_prediction - test_data[test_batch])
+                    test_accuracy = torch.abs(test_prediction.flatten() - test_data[test_batch].flatten())
                     test_accuracy = len(torch.nonzero(test_accuracy < 0.2)) / len(test_accuracy)
 
                     # Report train and test accuracies
                     print(f'Step {i:5d}: train|test accuracy - {train_accuracy:.2f}|{test_accuracy:.2f}')
 
             # Run test set through optimized neural network and determine correlation coefficient
-            test_prediction = torch.squeeze(net(test_seq[test_batch], test_context[test_batch])).data.numpy()
+            test_prediction = net(test_seq[test_batch], test_context[test_batch]).data.numpy()
             test_real = test_data[test_batch].data.numpy()
-            correlation = np.corrcoef(test_real.squeeze(), test_prediction)[0, 1]
+            correlation = np.corrcoef(test_real.flatten(), test_prediction.flatten())[0, 1]
             print(f'Correlation Coefficient: {correlation:.3f}')
 
         # Extract weights from model
@@ -709,7 +721,7 @@ class ContextAware():
         fig1 = plt.figure()
         plt.scatter(test_real, test_prediction, s=1, color='b')
         plt.plot([min(test_real), max(test_real)],
-                [min(test_real), max(test_real)], color='k')
+                 [min(test_real), max(test_real)], color='k')
         plt.xlabel('Real', fontsize=15)
         plt.ylabel('Prediction', fontsize=15)
         plt.title(f'Correlation Coefficient: {correlation:.3f}', fontsize=15)
@@ -778,3 +790,9 @@ class ContextAware():
         # Show figures
         else:
             plt.show()
+
+
+#=== RUN PEPTIDE-ARRAY-ML ===#
+if __name__ == '__main__':
+    nn = ContextAware(**param_dictionary)
+    nn.fit()

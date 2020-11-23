@@ -434,15 +434,15 @@ class ContextAware():
             [3] Output regression layer predicts binding value
     """
 
-    def __init__(self, peptides, context, binding, chem_encoder=False, encoder_nodes=10,
+    def __init__(self, sequences, context, data, chem_encoder=False, encoder_nodes=10,
                  evaluation_mode=False, hidden_layers=2, hidden_nodes=100, train_fraction=0.9,
                  train_steps=50000, train_test_split=[], weight_folder='fits', weight_save=False):
         """Parameter and file structure initialization
 
         Arguments:
-            peptides {str} -- path to peptide sequences
+            sequences {str} -- path to sequences
             context {str} -- path to context vectors
-            binding {str} -- path to binding values
+            data {str} -- path to output data values
         
         Keyword Arguments:
             chem_encoder {str} -- path to amino acid properties to use as encoder (default: {False})
@@ -458,9 +458,9 @@ class ContextAware():
             weight_save {bool} -- save weights to file (default: {False})
         """
         # Initialize variables
-        self.peptides = peptides
+        self.sequences = sequences
         self.context = context
-        self.binding = binding
+        self.data = data
         self.chem_encoder = chem_encoder
         self.encoder_nodes = encoder_nodes
         self.hidden_layers = hidden_layers
@@ -503,7 +503,7 @@ class ContextAware():
 
             # Create run folder
             old_runs = sum(('Run' in x for x in os.listdir(date_folder)))
-            filename = os.path.basename(peptides).split('.')[0]
+            filename = os.path.basename(self.sequences).split('.')[0]
             self.run_folder = date_folder + '/Run' + str(old_runs + 1) + '-' + filename
             os.makedirs(self.run_folder)
 
@@ -532,64 +532,64 @@ class ContextAware():
             chem_params = 0
 
         # Import data
-        peptides = pd.read_csv(self.peptides, header=None, squeeze=True)
+        sequences = pd.read_csv(self.sequences, header=None, squeeze=True)
         context = pd.read_csv(self.context, header=None)
-        binding = pd.read_csv(self.binding, header=None)
+        data = pd.read_csv(self.data, header=None)
 
         # Clean sequences and remove trailing GSG
-        peptides.replace(re.compile(f'[^{amino_acids}]'), '', inplace=True)
-        if sum(peptides.str[-3:] == 'GSG') / len(peptides) > 0.9:
-            peptides = peptides.str[:-3]
+        sequences.replace(re.compile(f'[^{amino_acids}]'), '', inplace=True)
+        if sum(sequences.str[-3:] == 'GSG') / len(sequences) > 0.9:
+            sequences = sequences.str[:-3]
 
         # Assign binary vector to each amino acid
         amino_dict = {n: m for (m, n) in enumerate(amino_acids)}
 
         # Create binary sequence matrix representation
-        max_len = int(peptides.str.len().max())
-        sequences = np.zeros((len(peptides), len(amino_acids) * max_len), dtype='int8')
-        for (n, m) in enumerate(peptides):
+        max_len = int(sequences.str.len().max())
+        sequences_one_hot = np.zeros((len(sequences), len(amino_acids) * max_len), dtype='int8')
+        for (n, m) in enumerate(sequences):
             amino_ind = [amino_dict[j] + (i * len(amino_acids)) for (i, j) in enumerate(m)]
-            sequences[n][amino_ind] = 1
+            sequences_one_hot[n][amino_ind] = 1
 
         # Add 100 and take base-10 logarithm of binding data
-        binding = np.log10(binding.values + 100)
+        data = np.log10(data.values + 100)
 
         # Randomly generate split between train and test sets if not manually specified
         if not len(self.train_test_split):
 
             # Exclude saturated binding values from train set
-            saturation_threshold = 0.98 * np.ptp(binding) + np.min(binding)
+            saturation_threshold = 0.98 * np.ptp(data) + np.min(data)
 
             # Assign train and test set indices
-            nonsaturated = np.where(binding.max(axis=1) <= saturation_threshold)[0]
+            nonsaturated = np.where(data.max(axis=1) <= saturation_threshold)[0]
             train_size = int(self.train_fraction * len(nonsaturated))
             train_split = np.random.choice(nonsaturated, train_size, replace=False)
-            self.train_test_split = np.ones(len(peptides), dtype=int)
+            self.train_test_split = np.ones(len(sequences), dtype=int)
             self.train_test_split[train_split] = 0
 
         # Split into train and test sets
-        train_peptides = np.copy(sequences[[x == 0 for x in self.train_test_split]])
+        train_sequences = np.copy(sequences_one_hot[[x == 0 for x in self.train_test_split]])
         train_context = np.copy(context[[x == 0 for x in self.train_test_split]])
-        train_binding = np.copy(binding[[x == 0 for x in self.train_test_split]])
-        test_peptides = np.copy(sequences[[x == 1 for x in self.train_test_split]])
+        train_data = np.copy(data[[x == 0 for x in self.train_test_split]])
+        test_sequences = np.copy(sequences_one_hot[[x == 1 for x in self.train_test_split]])
         test_context = np.copy(context[[x == 1 for x in self.train_test_split]])
-        test_binding = np.copy(binding[[x == 1 for x in self.train_test_split]])
+        test_data = np.copy(data[[x == 1 for x in self.train_test_split]])
 
         # Find bin indices for uniformly distributed batch gradient descent
-        train_peptides = train_peptides[train_binding.max(axis=1).argsort()]
-        train_context = train_context[train_binding.max(axis=1).argsort()]
-        train_binding = train_binding[train_binding.max(axis=1).argsort()]
-        bin_data = np.linspace(train_binding.max(axis=1).min(), train_binding.max(axis=1).max(), 100)
-        bin_ind = [np.argmin(np.abs(x - train_binding.max(axis=1))) for x in bin_data]
-        bin_ind = np.append(bin_ind, len(train_binding))
+        train_sequences = train_sequences[train_data.max(axis=1).argsort()]
+        train_context = train_context[train_data.max(axis=1).argsort()]
+        train_data = train_data[train_data.max(axis=1).argsort()]
+        bin_data = np.linspace(train_data.max(axis=1).min(), train_data.max(axis=1).max(), 100)
+        bin_ind = [np.argmin(np.abs(x - train_data.max(axis=1))) for x in bin_data]
+        bin_ind = np.append(bin_ind, len(train_data))
 
         # Convert to PyTorch variable tensors
-        train_seq = torch.from_numpy(train_peptides).float()
+        train_sequences = torch.from_numpy(train_sequences).float()
         train_context = torch.from_numpy(train_context).float()
-        train_data = torch.from_numpy(train_binding).float()
-        test_seq = torch.from_numpy(test_peptides).float()
+        train_data = torch.from_numpy(train_data).float()
+        test_sequences = torch.from_numpy(test_sequences).float()
         test_context = torch.from_numpy(test_context).float()
-        test_data = torch.from_numpy(test_binding).float()
+        test_data = torch.from_numpy(test_data).float()
 
 
         # Neural network architecture
@@ -647,8 +647,8 @@ class ContextAware():
             # Run test set through optimized neural network and determine correlation coefficient
             train_real = train_data.data.numpy()
             test_real = test_data.data.numpy()
-            train_prediction = net(train_seq).data.numpy()
-            test_prediction = net(test_seq).data.numpy()
+            train_prediction = net(train_sequences).data.numpy()
+            test_prediction = net(test_sequences).data.numpy()
             correlation = np.corrcoef(test_real, test_prediction)[0, 1]
             print('Correlation Coefficient: %.3f' % correlation)
 
@@ -667,7 +667,7 @@ class ContextAware():
                 train_ind[-1] = train_ind[-1] - 1
 
                 # Calculate loss
-                train_out = net(train_seq[train_ind], train_context[train_ind])
+                train_out = net(train_sequences[train_ind], train_context[train_ind])
                 loss = loss_function(train_out, train_data[train_ind])
 
                 # Weight optimization
@@ -679,12 +679,12 @@ class ContextAware():
                 if i % 100 == 0:
 
                     # Select 1000 training and test indices for progress report
-                    train_batch = random.sample(range(train_seq.shape[0]), 1000)
-                    test_batch = random.sample(range(test_seq.shape[0]), 1000)
+                    train_batch = random.sample(range(train_sequences.shape[0]), 1000)
+                    test_batch = random.sample(range(test_sequences.shape[0]), 1000)
 
                     # Train and test binding predictions
-                    train_prediction = net(train_seq[train_batch], train_context[train_batch])
-                    test_prediction = net(test_seq[test_batch], test_context[test_batch])
+                    train_prediction = net(train_sequences[train_batch], train_context[train_batch])
+                    test_prediction = net(test_sequences[test_batch], test_context[test_batch])
 
                     # Record train and test losses
                     train_loss = loss_function(train_prediction, train_data[train_batch])
@@ -701,7 +701,7 @@ class ContextAware():
                     print(f'Step {i:5d}: train|test accuracy - {train_accuracy:.2f}|{test_accuracy:.2f}')
 
             # Run test set through optimized neural network and determine correlation coefficient
-            test_prediction = net(test_seq[test_batch], test_context[test_batch]).data.numpy()
+            test_prediction = net(test_sequences[test_batch], test_context[test_batch]).data.numpy()
             test_real = test_data[test_batch].data.numpy()
             correlation = np.corrcoef(test_real.flatten(), test_prediction.flatten())[0, 1]
             print(f'Correlation Coefficient: {correlation:.3f}')

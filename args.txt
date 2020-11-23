@@ -1,6 +1,6 @@
-peptides,data/DM1A_sequence.csv
+sequences,data/DM1A_sequence.csv
 context,data/DM1A_concentration.csv
-binding,data/DM1A_data.csv
+data,data/DM1A_data.csv
 chem_encoder,false
 encoder_nodes,10
 evaluation_mode,false

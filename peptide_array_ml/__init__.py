@@ -45,7 +45,7 @@ if parameter_imports:
     globals().update(parameter_imports)
 
 # Store parameter settings
-parameter_scope = [x for x in dir() if x not in module_scope + ['moduleScope']]
+parameter_scope = [x for x in dir() if x not in module_scope + ['module_scope']]
 parameter_locals = locals()
 param_dictionary = {x: parameter_locals[x] for x in parameter_scope}
 
@@ -435,8 +435,9 @@ class ContextAware():
     """
 
     def __init__(self, sequences, context, data, chem_encoder=False, encoder_nodes=10,
-                 evaluation_mode=False, hidden_layers=2, hidden_nodes=100, train_fraction=0.9,
-                 train_steps=50000, train_test_split=[], weight_folder='fits', weight_save=False):
+                 evaluation_mode=False, hidden_layers=2, hidden_nodes=100, layer_freeze=0,
+                 learn_rate=0.001, train_fraction=0.9, train_steps=50000, train_test_split=[],
+                 transfer_learning=False, weight_folder='fits', weight_save=False):
         """Parameter and file structure initialization
 
         Arguments:
@@ -448,27 +449,35 @@ class ContextAware():
             chem_encoder {str} -- path to amino acid properties to use as encoder (default: {False})
             data {str/df} -- file path or dataframe of sequences and data (default: {'data/FNR.csv'})
             encoder_nodes {int} -- number of features to describe amino acids (default: {10})
-            evaluation_mode {str} -- path to pretrained 'Model.pth' neural network (default: {False})
+            evaluation_mode {str} -- path to pretrained 'Model.pth' weights (default: {False})
             hidden_layers {int} -- number of hidden layers in neural network (default: {2})
             hidden_nodes {int} -- number of nodes per hidden layer of neural network (default: {100})
+            layer_freeze {str} -- number of layers to freeze for transfer learning (default: {0})
+            learn_rate {float} -- magnitude of gradient descent step (default: {0.001})
             train_fraction {float} -- fraction of non-saturated data for training (default: {0.9})
             train_steps {int} -- number of training steps (default: {50000})
             train_test_split {list} -- train (0) and test (1) split assignments (default: {[]})
+            transfer_learning {str} -- path to pretrained 'Model.pth' weights (default: {False})
             weight_folder {str} -- directory name to save weights and biases (default: {'fits'})
             weight_save {bool} -- save weights to file (default: {False})
         """
-        # Initialize variables
+        # Initialize input paths
         self.sequences = sequences
         self.context = context
         self.data = data
+
+        # Initialize parameters
         self.chem_encoder = chem_encoder
         self.encoder_nodes = encoder_nodes
+        self.evaluation_mode = evaluation_mode
         self.hidden_layers = hidden_layers
         self.hidden_nodes = hidden_nodes
-        self.train_test_split = train_test_split
-        self.evaluation_mode = evaluation_mode
+        self.layer_freeze = layer_freeze
+        self.learn_rate = learn_rate
         self.train_fraction = train_fraction
         self.train_steps = train_steps
+        self.train_test_split = train_test_split
+        self.transfer_learning = transfer_learning
         self.weight_folder = weight_folder
         self.weight_save = weight_save
 
@@ -634,9 +643,25 @@ class ContextAware():
         print('\nARCHITECTURE:')
         print(net)
 
+        # Transfer learning
+        if self.transfer_learning:
+
+            # Load pretrained weights
+            net.load_state_dict(torch.load(self.transfer_learning))
+
+            # Freeze initial layer weights and biases
+            weight_bias_freeze = 2 * self.layer_freeze
+            weight_bias_freeze -= 1 if self.encoder_nodes else 0
+            for parameter in net.parameters():
+                if weight_bias_freeze <= 0:
+                    break
+                else:
+                    parameter.requires_grad = False
+                    weight_bias_freeze -= 1
+
         # Loss function and optimizer
         loss_function = nn.MSELoss()
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=0.001)
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=self.learn_rate)
 
         # Training
         if self.evaluation_mode:
@@ -787,6 +812,10 @@ class ContextAware():
             # Save model
             torch.save(net.state_dict(), f'{directory}/Model.pth')
 
+            # Save log file of most recent fit
+            with open(os.path.join(self.weight_folder, f'{self.weight_folder}.log'), 'w') as f:
+                f.write(f'{datetime.datetime.now()},{directory}\n')
+
         # Show figures
         else:
             plt.show()
@@ -794,5 +823,5 @@ class ContextAware():
 
 #=== RUN PEPTIDE-ARRAY-ML ===#
 if __name__ == '__main__':
-    nn = ContextAware(**param_dictionary)
-    nn.fit()
+    neural_network = ContextAware(**param_dictionary)
+    neural_network.fit()

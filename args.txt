@@ -7,6 +7,7 @@ evaluation_mode,false
 hidden_layers,2
 hidden_nodes,100
 layer_freeze,0
+learn_rate,0.001
 train_fraction,0.9
 train_steps,5000
 transfer_learning,fits/2020-11-25/Run6-DM1A_sequence/Sample1/Model.pth

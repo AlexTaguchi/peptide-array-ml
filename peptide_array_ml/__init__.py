@@ -540,7 +540,7 @@ class ContextAware():
         else:
             chem_params = 0
 
-        # Import data
+        # Import sequences, context, and data
         sequences = pd.read_csv(self.sequences, header=None, squeeze=True)
         context = pd.read_csv(self.context, header=None)
         data = pd.read_csv(self.data, header=None)
@@ -726,8 +726,10 @@ class ContextAware():
                     print(f'Step {i:5d}: train|test accuracy - {train_accuracy:.2f}|{test_accuracy:.2f}')
 
             # Run test set through optimized neural network and determine correlation coefficient
-            test_prediction = net(test_sequences[test_batch], test_context[test_batch]).data.numpy()
-            test_real = test_data[test_batch].data.numpy()
+            test_final = len(test_sequences) if len(test_sequences) < 100000 else 100000
+            test_final = random.sample(range(test_sequences.shape[0]), test_final)
+            test_prediction = net(test_sequences[test_final], test_context[test_final]).data.numpy()
+            test_real = test_data[test_final].data.numpy()
             correlation = np.corrcoef(test_real.flatten(), test_prediction.flatten())[0, 1]
             print(f'Correlation Coefficient: {correlation:.3f}')
 

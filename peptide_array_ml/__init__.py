@@ -541,9 +541,13 @@ class ContextAware():
             chem_params = 0
 
         # Import sequences, context, and data
-        sequences = pd.read_csv(self.sequences, header=None, squeeze=True)
+        sequences = pd.read_csv(self.sequences, header=None)
         context = pd.read_csv(self.context, header=None)
         data = pd.read_csv(self.data, header=None)
+
+        # Extract train test split assignments from sequences
+        self.train_test_split = sequences.iloc[:, 1].tolist() if len(sequences.columns) > 1 else []
+        sequences = sequences.iloc[:, 0]
 
         # Clean sequences and remove trailing GSG
         sequences.replace(re.compile(f'[^{amino_acids}]'), '', inplace=True)

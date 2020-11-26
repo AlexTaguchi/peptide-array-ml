@@ -434,8 +434,8 @@ class ContextAware():
             [3] Output regression layer predicts binding value
     """
 
-    def __init__(self, sequences, context, data, chem_encoder=False, encoder_nodes=10,
-                 evaluation_mode=False, hidden_layers=2, hidden_nodes=100, layer_freeze=0,
+    def __init__(self, sequences, context, data, amino_acids='ADEFGHKLNPQRSVWY', chem_encoder=False,
+                 encoder_nodes=10, evaluation_mode=False, hidden_layers=2, hidden_nodes=100, layer_freeze=0,
                  learn_rate=0.001, train_fraction=0.9, train_steps=50000, train_test_split=[],
                  transfer_learning=False, weight_folder='fits', weight_save=False):
         """Parameter and file structure initialization
@@ -446,6 +446,7 @@ class ContextAware():
             data {str} -- path to output data values
         
         Keyword Arguments:
+            amino_acids {str} -- amino acid letter codes (default: {'ADEFGHKLNPQRSVWY'})
             chem_encoder {str} -- path to amino acid properties to use as encoder (default: {False})
             data {str/df} -- file path or dataframe of sequences and data (default: {'data/FNR.csv'})
             encoder_nodes {int} -- number of features to describe amino acids (default: {10})
@@ -467,6 +468,7 @@ class ContextAware():
         self.data = data
 
         # Initialize parameters
+        self.amino_acids = amino_acids
         self.chem_encoder = chem_encoder
         self.encoder_nodes = encoder_nodes
         self.evaluation_mode = evaluation_mode
@@ -530,13 +532,10 @@ class ContextAware():
         # Import matplotlib into new environment
         import matplotlib.pyplot as plt
 
-        # Define amino acid letter codes
-        amino_acids = 'ADEFGHKLNPQRSVWY'
-
         # Represent amino acids with measured chemical parameters
         if self.chem_encoder:
             chem_params = pd.read_csv('data/chem.txt', delimiter='\t', header=0, index_col=0, skiprows=1)
-            chem_params = torch.from_numpy(chem_params.loc[list(amino_acids)].values).float()
+            chem_params = torch.from_numpy(chem_params.loc[list(self.amino_acids)].values).float()
         else:
             chem_params = 0
 
@@ -550,18 +549,18 @@ class ContextAware():
         sequences = sequences.iloc[:, 0]
 
         # Clean sequences and remove trailing GSG
-        sequences.replace(re.compile(f'[^{amino_acids}]'), '', inplace=True)
+        sequences.replace(re.compile(f'[^{self.amino_acids}]'), '', inplace=True)
         if sum(sequences.str[-3:] == 'GSG') / len(sequences) > 0.9:
             sequences = sequences.str[:-3]
 
         # Assign binary vector to each amino acid
-        amino_dict = {n: m for (m, n) in enumerate(amino_acids)}
+        amino_dict = {n: m for (m, n) in enumerate(self.amino_acids)}
 
         # Create binary sequence matrix representation
         max_len = int(sequences.str.len().max())
-        sequences_one_hot = np.zeros((len(sequences), len(amino_acids) * max_len), dtype='int8')
+        sequences_one_hot = np.zeros((len(sequences), len(self.amino_acids) * max_len), dtype='int8')
         for (n, m) in enumerate(sequences):
-            amino_ind = [amino_dict[j] + (i * len(amino_acids)) for (i, j) in enumerate(m)]
+            amino_ind = [amino_dict[j] + (i * len(self.amino_acids)) for (i, j) in enumerate(m)]
             sequences_one_hot[n][amino_ind] = 1
 
         # Add 100 and take base-10 logarithm of binding data
@@ -608,20 +607,21 @@ class ContextAware():
         # Neural network architecture
         class Architecture(nn.Module):
 
-            def __init__(self, encoder, nodes, layers, contexts, outputs):
+            def __init__(self, inputs, encoder, nodes, layers, contexts, outputs):
                 super().__init__()
 
                 # Layer nodes
+                self.inputs = inputs
                 self.encoder = encoder
                 self.contexts = contexts
-                self.hidden = max_len * encoder if encoder else max_len * len(amino_acids)
+                self.hidden = max_len * encoder if encoder else max_len * inputs
                 self.outputs = outputs
 
                 # Amino acid encoder
                 if encoder and chem_params:
                     self.encoder_layer = nn.Linear(encoder, encoder, bias=True)
                 elif encoder:
-                    self.encoder_layer = nn.Linear(len(amino_acids), encoder, bias=False)
+                    self.encoder_layer = nn.Linear(inputs, encoder, bias=False)
                 
                 # Hidden layers
                 self.hidden_layers = nn.ModuleList([nn.Linear(self.hidden + contexts, nodes, bias=True)])
@@ -632,7 +632,7 @@ class ContextAware():
 
             def forward(self, sequence_batch, context_batch):
                 if self.encoder:
-                    sequence_batch = sequence_batch.view(-1, len(amino_acids))
+                    sequence_batch = sequence_batch.view(-1, self.inputs)
                     if chem_params:
                         sequence_batch = torch.mm(sequence_batch, chem_params)
                     sequence_batch = self.encoder_layer(sequence_batch)
@@ -642,8 +642,8 @@ class ContextAware():
                     sequence_batch = functional.relu(x(sequence_batch))
                 return self.output_layer(torch.cat((sequence_batch, context_batch), dim=1))
 
-        net = Architecture(encoder=self.encoder_nodes, nodes=self.hidden_nodes, layers=self.hidden_layers,
-                           contexts=train_context.shape[1], outputs=train_data.shape[1])
+        net = Architecture(inputs=len(self.amino_acids), encoder=self.encoder_nodes, nodes=self.hidden_nodes,
+                           layers=self.hidden_layers, contexts=train_context.shape[1], outputs=train_data.shape[1])
         print('\nARCHITECTURE:')
         print(net)
 
@@ -764,8 +764,8 @@ class ContextAware():
             amino_similar = np.dot((encoder_layer / amino_similar),
                                     np.transpose(encoder_layer / amino_similar))
             fig2 = plt.matshow(amino_similar, cmap='coolwarm')
-            plt.xticks(range(len(amino_acids)), amino_acids)
-            plt.yticks(range(len(amino_acids)), amino_acids)
+            plt.xticks(range(len(self.amino_acids)), self.amino_acids)
+            plt.yticks(range(len(self.amino_acids)), self.amino_acids)
             plt.colorbar()
             plt.clim(-1, 1)
 

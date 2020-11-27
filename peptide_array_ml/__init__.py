@@ -435,7 +435,7 @@ class ContextAware():
     """
 
     def __init__(self, sequences, context, data, amino_acids='ADEFGHKLNPQRSVWY', chem_encoder=False,
-                 encoder_nodes=10, evaluation_mode=False, hidden_layers=2, hidden_nodes=100, layer_freeze=0,
+                 encoder_nodes=10, evaluate_model=False, hidden_layers=2, hidden_nodes=100, layer_freeze=0,
                  learn_rate=0.001, train_fraction=0.9, train_steps=50000, train_test_split=[],
                  transfer_learning=False, weight_folder='fits', weight_save=False):
         """Parameter and file structure initialization
@@ -450,7 +450,7 @@ class ContextAware():
             chem_encoder {str} -- path to amino acid properties to use as encoder (default: {False})
             data {str/df} -- file path or dataframe of sequences and data (default: {'data/FNR.csv'})
             encoder_nodes {int} -- number of features to describe amino acids (default: {10})
-            evaluation_mode {str} -- path to pretrained 'Model.pth' weights (default: {False})
+            evaluate_model {str} -- path to 'Model.pth' to evaluate model (default: {False})
             hidden_layers {int} -- number of hidden layers in neural network (default: {2})
             hidden_nodes {int} -- number of nodes per hidden layer of neural network (default: {100})
             layer_freeze {str} -- number of layers to freeze for transfer learning (default: {0})
@@ -458,7 +458,7 @@ class ContextAware():
             train_fraction {float} -- fraction of non-saturated data for training (default: {0.9})
             train_steps {int} -- number of training steps (default: {50000})
             train_test_split {list} -- train (0) and test (1) split assignments (default: {[]})
-            transfer_learning {str} -- path to pretrained 'Model.pth' weights (default: {False})
+            transfer_learning {str} -- path to 'Model.pth' for transfer learning (default: {False})
             weight_folder {str} -- directory name to save weights and biases (default: {'fits'})
             weight_save {bool} -- save weights to file (default: {False})
         """
@@ -471,7 +471,7 @@ class ContextAware():
         self.amino_acids = amino_acids
         self.chem_encoder = chem_encoder
         self.encoder_nodes = encoder_nodes
-        self.evaluation_mode = evaluation_mode
+        self.evaluate_model = evaluate_model
         self.hidden_layers = hidden_layers
         self.hidden_nodes = hidden_nodes
         self.layer_freeze = layer_freeze
@@ -539,10 +539,16 @@ class ContextAware():
         else:
             chem_params = 0
 
-        # Import sequences, context, and data
+        # Import input sequences and context
         sequences = pd.read_csv(self.sequences, header=None)
-        context = pd.read_csv(self.context, header=None)
-        data = pd.read_csv(self.data, header=None)
+        context = pd.read_csv(self.context, header=None).values
+
+        # Import output data if provided and apply logarithm
+        if self.data:
+            data = pd.read_csv(self.data, header=None).values
+        else:
+            data = np.random.normal(0, 1, len(sequences))[:, None]
+        data = np.log10(data + 100)
 
         # Extract train test split assignments from sequences
         self.train_test_split = sequences.iloc[:, 1].tolist() if len(sequences.columns) > 1 else []
@@ -562,9 +568,6 @@ class ContextAware():
         for (n, m) in enumerate(sequences):
             amino_ind = [amino_dict[j] + (i * len(self.amino_acids)) for (i, j) in enumerate(m)]
             sequences_one_hot[n][amino_ind] = 1
-
-        # Add 100 and take base-10 logarithm of binding data
-        data = np.log10(data.values + 100)
 
         # Randomly generate split between train and test sets if not manually specified
         if not len(self.train_test_split):
@@ -647,7 +650,12 @@ class ContextAware():
         print('\nARCHITECTURE:')
         print(net)
 
-        # Transfer learning
+        # Loss function and optimizer
+        losses = []
+        loss_function = nn.MSELoss()
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=self.learn_rate)
+
+        # Transfer learn from trained model
         if self.transfer_learning:
 
             # Load pretrained weights
@@ -663,30 +671,14 @@ class ContextAware():
                     parameter.requires_grad = False
                     weight_bias_freeze -= 1
 
-        # Loss function and optimizer
-        loss_function = nn.MSELoss()
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=self.learn_rate)
+        # Evaluate trained model
+        if self.evaluate_model:
+            net.load_state_dict(torch.load(self.evaluate_model))
 
-        # Training
-        if self.evaluation_mode:
-
-            # Load pretrained weights
-            net.load_state_dict(torch.load(self.evaluation_mode))
-
-            # Run test set through optimized neural network and determine correlation coefficient
-            train_real = train_data.data.numpy()
-            test_real = test_data.data.numpy()
-            train_prediction = net(train_sequences).data.numpy()
-            test_prediction = net(test_sequences).data.numpy()
-            correlation = np.corrcoef(test_real, test_prediction)[0, 1]
-            print('Correlation Coefficient: %.3f' % correlation)
-
-            return (train_real, train_prediction, test_real, test_prediction)
-
+        # Train model
         else:
 
             # Record best network weights and loss
-            losses = []
             print('\nTRAINING:')
             for i in range(self.train_steps + 1):
 
@@ -729,13 +721,13 @@ class ContextAware():
                     # Report train and test accuracies
                     print(f'Step {i:5d}: train|test accuracy - {train_accuracy:.2f}|{test_accuracy:.2f}')
 
-            # Run test set through optimized neural network and determine correlation coefficient
-            test_final = len(test_sequences) if len(test_sequences) < 100000 else 100000
-            test_final = random.sample(range(test_sequences.shape[0]), test_final)
-            test_prediction = net(test_sequences[test_final], test_context[test_final]).data.numpy()
-            test_real = test_data[test_final].data.numpy()
-            correlation = np.corrcoef(test_real.flatten(), test_prediction.flatten())[0, 1]
-            print(f'Correlation Coefficient: {correlation:.3f}')
+        # Run test set through optimized neural network and determine correlation coefficient
+        test_batch = len(test_sequences) if len(test_sequences) < 100000 else 100000
+        test_batch = random.sample(range(test_sequences.shape[0]), test_batch)
+        test_prediction = net(test_sequences[test_batch], test_context[test_batch]).data.numpy()
+        test_real = test_data[test_batch].data.numpy()
+        correlation = np.corrcoef(test_real.flatten(), test_prediction.flatten())[0, 1]
+        print(f'Correlation Coefficient: {correlation:.3f}')
 
         # Extract weights from model
         if self.encoder_nodes:
@@ -762,7 +754,7 @@ class ContextAware():
             amino_similar = np.linalg.norm(encoder_layer, axis=1)
             amino_similar = np.array([self.encoder_nodes * [magnitude] for magnitude in amino_similar])
             amino_similar = np.dot((encoder_layer / amino_similar),
-                                    np.transpose(encoder_layer / amino_similar))
+                                   np.transpose(encoder_layer / amino_similar))
             fig2 = plt.matshow(amino_similar, cmap='coolwarm')
             plt.xticks(range(len(self.amino_acids)), self.amino_acids)
             plt.yticks(range(len(self.amino_acids)), self.amino_acids)
@@ -817,6 +809,13 @@ class ContextAware():
 
             # Save model
             torch.save(net.state_dict(), f'{directory}/Model.pth')
+
+            # Save all predictions
+            with open(f'{directory}/Predictions.txt', 'w') as f:
+                for i in range(0, len(sequences_one_hot), 1000):
+                    predictions = net(torch.from_numpy(sequences_one_hot[i:i+1000]).float(),
+                                      torch.from_numpy(context[i:i+1000]).float()).data.numpy()
+                    np.savetxt(f, predictions, fmt='%.5f', delimiter=',')
 
             # Save log file of most recent fit
             with open(os.path.join(self.weight_folder, f'{self.weight_folder}.log'), 'w') as f:

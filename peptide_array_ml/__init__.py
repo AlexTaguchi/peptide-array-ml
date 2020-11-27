@@ -443,7 +443,7 @@ class ContextAware():
         Arguments:
             sequences {str} -- path to sequences
             context {str} -- path to context vectors
-            data {str} -- path to output data values
+            data {str} -- path to binding data values (set to False for no data)
         
         Keyword Arguments:
             amino_acids {str} -- amino acid letter codes (default: {'ADEFGHKLNPQRSVWY'})

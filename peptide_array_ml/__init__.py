@@ -434,10 +434,10 @@ class ContextAware():
             [3] Output regression layer predicts binding value
     """
 
-    def __init__(self, sequences, context, data, amino_acids='ADEFGHKLNPQRSVWY', chem_encoder=False,
-                 encoder_nodes=10, evaluate_model=False, hidden_layers=2, hidden_nodes=100, layer_freeze=0,
-                 learn_rate=0.001, train_fraction=0.9, train_steps=50000, train_test_split=[],
-                 transfer_learning=False, weight_folder='fits', weight_save=False):
+    def __init__(self, sequences, context, data, amino_acids='ADEFGHKLNPQRSVWY', batch_size=100,
+                 chem_encoder=False, encoder_nodes=10, evaluate_model=False, hidden_layers=2,
+                 hidden_nodes=100, layer_freeze=0, learn_rate=0.001, train_fraction=0.9, train_steps=50000,
+                 train_test_split=[], transfer_learning=False, weight_folder='fits', weight_save=False):
         """Parameter and file structure initialization
 
         Arguments:
@@ -447,6 +447,7 @@ class ContextAware():
         
         Keyword Arguments:
             amino_acids {str} -- amino acid letter codes (default: {'ADEFGHKLNPQRSVWY'})
+            batch_size {int} -- batch size for training (default: {100})
             chem_encoder {str} -- path to amino acid properties to use as encoder (default: {False})
             data {str/df} -- file path or dataframe of sequences and data (default: {'data/FNR.csv'})
             encoder_nodes {int} -- number of features to describe amino acids (default: {10})
@@ -469,6 +470,7 @@ class ContextAware():
 
         # Initialize parameters
         self.amino_acids = amino_acids
+        self.batch_size = batch_size
         self.chem_encoder = chem_encoder
         self.encoder_nodes = encoder_nodes
         self.evaluate_model = evaluate_model
@@ -594,7 +596,7 @@ class ContextAware():
         train_sequences = train_sequences[train_data.max(axis=1).argsort()]
         train_context = train_context[train_data.max(axis=1).argsort()]
         train_data = train_data[train_data.max(axis=1).argsort()]
-        bin_data = np.linspace(train_data.max(axis=1).min(), train_data.max(axis=1).max(), 100)
+        bin_data = np.linspace(train_data.max(axis=1).min(), train_data.max(axis=1).max(), self.batch_size)
         bin_ind = [np.argmin(np.abs(x - train_data.max(axis=1))) for x in bin_data]
         bin_ind = np.append(bin_ind, len(train_data))
 
@@ -683,8 +685,7 @@ class ContextAware():
             for i in range(self.train_steps + 1):
 
                 # Select indices for training
-                train_ind = [np.random.randint(bin_ind[i], bin_ind[i + 1] + 1)
-                             for i in range(len(bin_ind) - 1)]
+                train_ind = [np.random.randint(bin_ind[i], bin_ind[i + 1] + 1) for i in range(len(bin_ind) - 1)]
                 train_ind[-1] = train_ind[-1] - 1
 
                 # Calculate loss

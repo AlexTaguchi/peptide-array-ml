@@ -2,6 +2,7 @@ sequences,data/DM1A_sequence.csv
 context,data/DM1A_concentration.csv
 data,false
 amino_acids,ADEFGHKLNPQRSVWY
+batch_size,100
 chem_encoder,false
 encoder_nodes,10
 evaluate_model,fits/2020-11-25/Run7-DM1A_sequence/Sample1/Model.pth

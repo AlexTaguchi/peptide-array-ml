@@ -442,7 +442,7 @@ class ContextAware():
 
         Arguments:
             sequences {str} -- path to sequences
-            context {str} -- path to context vectors
+            context {str} -- path to context vectors (set to False for no context)
             data {str} -- path to binding data values (set to False for no data)
         
         Keyword Arguments:
@@ -543,7 +543,7 @@ class ContextAware():
 
         # Import input sequences and context
         sequences = pd.read_csv(self.sequences, header=None)
-        context = pd.read_csv(self.context, header=None).values
+        context = pd.read_csv(self.context, header=None).values if self.context else np.zeros((len(sequences), 1))
 
         # Import output data if provided and apply logarithm
         if self.data:
@@ -635,20 +635,20 @@ class ContextAware():
                 # Output layer
                 self.output_layer = nn.Linear(nodes + contexts, outputs, bias=True)
 
-            def forward(self, sequence_batch, context_batch):
+            def forward(self, seqs, cont):
                 if self.encoder:
-                    sequence_batch = sequence_batch.view(-1, self.inputs)
-                    if chem_params:
-                        sequence_batch = torch.mm(sequence_batch, chem_params)
-                    sequence_batch = self.encoder_layer(sequence_batch)
-                    sequence_batch = sequence_batch.view(-1, max_len * self.encoder)
+                    seqs = seqs.view(-1, self.inputs)
+                    seqs = torch.mm(seqs, chem_params) if chem_params else seqs
+                    seqs = self.encoder_layer(seqs)
+                    seqs = seqs.view(-1, max_len * self.encoder)
                 for x in self.hidden_layers:
-                    sequence_batch = torch.cat((sequence_batch, context_batch), dim=1)
-                    sequence_batch = functional.relu(x(sequence_batch))
-                return self.output_layer(torch.cat((sequence_batch, context_batch), dim=1))
+                    seqs = torch.cat((seqs, cont), dim=1) if self.contexts else seqs
+                    seqs = functional.relu(x(seqs))
+                return self.output_layer(torch.cat((seqs, cont), dim=1) if self.contexts else seqs) 
 
         net = Architecture(inputs=len(self.amino_acids), encoder=self.encoder_nodes, nodes=self.hidden_nodes,
-                           layers=self.hidden_layers, contexts=train_context.shape[1], outputs=train_data.shape[1])
+                           layers=self.hidden_layers, contexts=train_context.shape[1] if self.context else 0,
+                           outputs=train_data.shape[1])
         print('\nARCHITECTURE:')
         print(net)
 

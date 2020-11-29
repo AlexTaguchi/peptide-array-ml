@@ -1,6 +1,6 @@
-sequences,sequence_file.csv
-context,context_file.csv
-data,data_file.csv
+sequences,data/test_sequence.csv
+context,data/test_context.csv
+data,data/test_data.csv
 amino_acids,ADEFGHKLNPQRSVWY
 batch_size,100
 chem_encoder,false
@@ -14,4 +14,4 @@ train_fraction,0.9
 train_steps,50000
 transfer_learning,false
 weight_folder,fits
-weight_save,true
+weight_save,false

@@ -744,8 +744,8 @@ class ContextAware():
         # Scatter plot of predicted vs real
         fig1 = plt.figure()
         plt.scatter(test_real, test_prediction, s=1, color='b')
-        plt.plot([min(test_real), max(test_real)],
-                 [min(test_real), max(test_real)], color='k')
+        plt.plot([test_real.min(), test_real.max()],
+                 [test_real.min(), test_real.max()], color='k')
         plt.xlabel('Real', fontsize=15)
         plt.ylabel('Prediction', fontsize=15)
         plt.title(f'Correlation Coefficient: {correlation:.3f}', fontsize=15)

@@ -1,6 +1,6 @@
-sequences,data/DM1A_sequence.csv
-context,data/DM1A_concentration.csv
-data,data/DM1A_data.csv
+sequences,sequence_file.csv
+context,context_file.csv
+data,data_file.csv
 amino_acids,ADEFGHKLNPQRSVWY
 batch_size,100
 chem_encoder,false
@@ -11,7 +11,7 @@ hidden_nodes,100
 layer_freeze,0
 learn_rate,0.001
 train_fraction,0.9
-train_steps,5000
+train_steps,50000
 transfer_learning,false
 weight_folder,fits
 weight_save,true

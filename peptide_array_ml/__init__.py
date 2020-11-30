@@ -720,15 +720,21 @@ class ContextAware():
                     test_accuracy = len(torch.nonzero(test_accuracy < 0.2)) / len(test_accuracy)
 
                     # Report train and test accuracies
-                    print(f'Step {i:5d}: train|test accuracy - {train_accuracy:.2f}|{test_accuracy:.2f}')
+                    print(f'Step {i:5d}: train|test accuracy – {train_accuracy:.2f}|{test_accuracy:.2f}')
 
-        # Run test set through optimized neural network and determine correlation coefficient
+        # Determine correlation coefficients for optimized neural network
+        train_batch = len(train_sequences) if len(train_sequences) < 100000 else 100000
+        train_batch = random.sample(range(train_sequences.shape[0]), train_batch)
+        train_prediction = net(train_sequences[train_batch], train_context[train_batch]).data.numpy()
+        train_real = train_data[train_batch].data.numpy()
+        train_correlation = np.corrcoef(train_real.flatten(), train_prediction.flatten())[0, 1]
+
         test_batch = len(test_sequences) if len(test_sequences) < 100000 else 100000
         test_batch = random.sample(range(test_sequences.shape[0]), test_batch)
         test_prediction = net(test_sequences[test_batch], test_context[test_batch]).data.numpy()
         test_real = test_data[test_batch].data.numpy()
-        correlation = np.corrcoef(test_real.flatten(), test_prediction.flatten())[0, 1]
-        print(f'Correlation Coefficient: {correlation:.3f}')
+        test_correlation = np.corrcoef(test_real.flatten(), test_prediction.flatten())[0, 1]
+        print(f'Correlation Coefficient: train|test – {train_correlation:.3f}|{test_correlation:.3f}')
 
         # Extract weights from model
         if self.encoder_nodes:
@@ -742,13 +748,20 @@ class ContextAware():
         plt.ioff()
 
         # Scatter plot of predicted vs real
-        fig1 = plt.figure()
-        plt.scatter(test_real, test_prediction, s=1, color='b')
-        plt.plot([test_real.min(), test_real.max()],
-                 [test_real.min(), test_real.max()], color='k')
-        plt.xlabel('Real', fontsize=15)
-        plt.ylabel('Prediction', fontsize=15)
-        plt.title(f'Correlation Coefficient: {correlation:.3f}', fontsize=15)
+        fig1, ax1 = plt.subplots(1, 2, figsize=(12, 5))
+        ax1[0].scatter(train_real, train_prediction, s=1, color='b')
+        ax1[0].plot([train_real.min(), train_real.max()],
+                    [train_real.min(), train_real.max()], color='k')
+        ax1[0].set_xlabel('Real', fontsize=15)
+        ax1[0].set_ylabel('Prediction', fontsize=15)
+        ax1[0].set_title(f'Train Correlation: {train_correlation:.3f}', fontsize=15)
+
+        ax1[1].scatter(test_real, test_prediction, s=1, color='b')
+        ax1[1].plot([test_real.min(), test_real.max()],
+                    [test_real.min(), test_real.max()], color='k')
+        ax1[1].set_xlabel('Real', fontsize=15)
+        ax1[1].set_ylabel('Prediction', fontsize=15)
+        ax1[1].set_title(f'Test Correlation: {test_correlation:.3f}', fontsize=15)
 
         # Amino acid similarity matrix
         if self.encoder_nodes and not self.chem_encoder:
@@ -786,7 +799,8 @@ class ContextAware():
 
             # Save correlation coefficient to file
             with open(f'{directory}/Correlation.txt', 'w') as f:
-                f.write(str(correlation))
+                f.write(f'Train: {test_correlation}')
+                f.write(f'Test: {test_correlation}')
             
             # Save training and testing losses
             with open(f'{directory}/Loss.txt', 'w') as f:

@@ -10,6 +10,7 @@ hidden_layers,2
 hidden_nodes,100
 layer_freeze,0
 learn_rate,0.001
+log_shift,100
 train_fraction,0.9
 train_steps,50000
 transfer_learning,false

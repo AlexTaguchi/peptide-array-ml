@@ -436,8 +436,9 @@ class ContextAware():
 
     def __init__(self, sequences, context, data, amino_acids='ADEFGHKLNPQRSVWY', batch_size=100,
                  chem_encoder=False, encoder_nodes=10, evaluate_model=False, hidden_layers=2,
-                 hidden_nodes=100, layer_freeze=0, learn_rate=0.001, train_fraction=0.9, train_steps=50000,
-                 train_test_split=[], transfer_learning=False, weight_folder='fits', weight_save=False):
+                 hidden_nodes=100, layer_freeze=0, learn_rate=0.001, log_shift=100, train_fraction=0.9,
+                 train_steps=50000, train_test_split=[], transfer_learning=False, weight_folder='fits',
+                 weight_save=False):
         """Parameter and file structure initialization
 
         Arguments:
@@ -456,6 +457,7 @@ class ContextAware():
             hidden_nodes {int} -- number of nodes per hidden layer of neural network (default: {100})
             layer_freeze {str} -- number of layers to freeze for transfer learning (default: {0})
             learn_rate {float} -- magnitude of gradient descent step (default: {0.001})
+            log_shift {int} -- value to shift data before applying logarithm (defaulf: {100})
             train_fraction {float} -- fraction of non-saturated data for training (default: {0.9})
             train_steps {int} -- number of training steps (default: {50000})
             train_test_split {list} -- train (0) and test (1) split assignments (default: {[]})
@@ -478,6 +480,7 @@ class ContextAware():
         self.hidden_nodes = hidden_nodes
         self.layer_freeze = layer_freeze
         self.learn_rate = learn_rate
+        self.log_shift = log_shift
         self.train_fraction = train_fraction
         self.train_steps = train_steps
         self.train_test_split = train_test_split
@@ -550,7 +553,7 @@ class ContextAware():
             data = pd.read_csv(self.data, header=None).values
         else:
             data = np.random.normal(0, 1, len(sequences))[:, None]
-        data = np.log10(data + 100)
+        data = np.log10(data + self.log_shift)
 
         # Extract train test split assignments from sequences
         self.train_test_split = sequences.iloc[:, 1].tolist() if len(sequences.columns) > 1 else []
@@ -723,13 +726,13 @@ class ContextAware():
                     print(f'Step {i:5d}: train|test accuracy – {train_accuracy:.2f}|{test_accuracy:.2f}')
 
         # Determine correlation coefficients for optimized neural network
-        train_batch = len(train_sequences) if len(train_sequences) < 100000 else 100000
+        train_batch = len(train_sequences) if len(train_sequences) < 10000 else 10000
         train_batch = random.sample(range(train_sequences.shape[0]), train_batch)
         train_prediction = net(train_sequences[train_batch], train_context[train_batch]).data.numpy()
         train_real = train_data[train_batch].data.numpy()
         train_correlation = np.corrcoef(train_real.flatten(), train_prediction.flatten())[0, 1]
 
-        test_batch = len(test_sequences) if len(test_sequences) < 100000 else 100000
+        test_batch = len(test_sequences) if len(test_sequences) < 10000 else 10000
         test_batch = random.sample(range(test_sequences.shape[0]), test_batch)
         test_prediction = net(test_sequences[test_batch], test_context[test_batch]).data.numpy()
         test_real = test_data[test_batch].data.numpy()
@@ -830,7 +833,7 @@ class ContextAware():
                 for i in range(0, len(sequences_one_hot), 1000):
                     predictions = net(torch.from_numpy(sequences_one_hot[i:i+1000]).float(),
                                       torch.from_numpy(context[i:i+1000]).float()).data.numpy()
-                    np.savetxt(f, predictions, fmt='%.5f', delimiter=',')
+                    np.savetxt(f, 10**(predictions) - self.log_shift, fmt='%.5f', delimiter=',')
 
             # Save log file of most recent fit
             with open(os.path.join(self.weight_folder, f'{self.weight_folder}.log'), 'w') as f:

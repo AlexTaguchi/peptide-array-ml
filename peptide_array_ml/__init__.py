@@ -437,8 +437,7 @@ class ContextAware():
     def __init__(self, sequences, context, data, amino_acids='ADEFGHKLNPQRSVWY', batch_size=100,
                  chem_encoder=False, encoder_nodes=10, evaluate_model=False, hidden_layers=2,
                  hidden_nodes=100, layer_freeze=0, learn_rate=0.001, log_shift=100, train_fraction=0.9,
-                 train_steps=50000, train_test_split=[], transfer_learning=False, weight_folder='fits',
-                 weight_save=False):
+                 train_steps=50000, transfer_learning=False, weight_folder='fits', weight_save=False):
         """Parameter and file structure initialization
 
         Arguments:
@@ -460,7 +459,6 @@ class ContextAware():
             log_shift {int} -- value to shift data before applying logarithm (defaulf: {100})
             train_fraction {float} -- fraction of non-saturated data for training (default: {0.9})
             train_steps {int} -- number of training steps (default: {50000})
-            train_test_split {list} -- train (0) and test (1) split assignments (default: {[]})
             transfer_learning {str} -- path to 'Model.pth' for transfer learning (default: {False})
             weight_folder {str} -- directory name to save weights and biases (default: {'fits'})
             weight_save {bool} -- save weights to file (default: {False})
@@ -483,7 +481,6 @@ class ContextAware():
         self.log_shift = log_shift
         self.train_fraction = train_fraction
         self.train_steps = train_steps
-        self.train_test_split = train_test_split
         self.transfer_learning = transfer_learning
         self.weight_folder = weight_folder
         self.weight_save = weight_save
@@ -498,11 +495,6 @@ class ContextAware():
         
         # Store parameter settings
         self.settings = {key: value for key, value in locals().items() if key != 'self'}
-
-        # Import train and test split assignments
-        if len(self.train_test_split):
-            self.train_test_split = np.array(self.train_test_split, dtype=int)
-            assert set(self.train_test_split) == {0, 1}, 'Only 0 and 1 allowed in train_test_split!'
 
         # Generate file structure
         current_date = datetime.datetime.today().strftime('%Y-%m-%d')
@@ -556,7 +548,7 @@ class ContextAware():
         data = np.log10(data + self.log_shift)
 
         # Extract train test split assignments from sequences
-        self.train_test_split = sequences.iloc[:, 1].tolist() if len(sequences.columns) > 1 else []
+        train_test_split = sequences.iloc[:, 1].tolist() if len(sequences.columns) > 1 else []
         sequences = sequences.iloc[:, 0]
 
         # Clean sequences and remove trailing GSG
@@ -575,7 +567,7 @@ class ContextAware():
             sequences_one_hot[n][amino_ind] = 1
 
         # Randomly generate split between train and test sets if not manually specified
-        if not len(self.train_test_split):
+        if len(train_test_split) == 0:
 
             # Exclude saturated binding values from train set
             saturation_threshold = 0.98 * np.ptp(data) + np.min(data)
@@ -584,16 +576,16 @@ class ContextAware():
             nonsaturated = np.where(data.max(axis=1) <= saturation_threshold)[0]
             train_size = int(self.train_fraction * len(nonsaturated))
             train_split = np.random.choice(nonsaturated, train_size, replace=False)
-            self.train_test_split = np.ones(len(sequences), dtype=int)
-            self.train_test_split[train_split] = 0
+            train_test_split = np.ones(len(sequences), dtype=int)
+            train_test_split[train_split] = 0
 
         # Split into train and test sets
-        train_sequences = np.copy(sequences_one_hot[[x == 0 for x in self.train_test_split]])
-        train_context = np.copy(context[[x == 0 for x in self.train_test_split]])
-        train_data = np.copy(data[[x == 0 for x in self.train_test_split]])
-        test_sequences = np.copy(sequences_one_hot[[x == 1 for x in self.train_test_split]])
-        test_context = np.copy(context[[x == 1 for x in self.train_test_split]])
-        test_data = np.copy(data[[x == 1 for x in self.train_test_split]])
+        train_sequences = np.copy(sequences_one_hot[[x == 0 for x in train_test_split]])
+        train_context = np.copy(context[[x == 0 for x in train_test_split]])
+        train_data = np.copy(data[[x == 0 for x in train_test_split]])
+        test_sequences = np.copy(sequences_one_hot[[x == 1 for x in train_test_split]])
+        test_context = np.copy(context[[x == 1 for x in train_test_split]])
+        test_data = np.copy(data[[x == 1 for x in train_test_split]])
 
         # Find bin indices for uniformly distributed batch gradient descent
         train_sequences = train_sequences[train_data.max(axis=1).argsort()]
@@ -787,7 +779,7 @@ class ContextAware():
 
             # Save train test split
             with open(f'{directory}/TrainTestSplit.txt', 'w') as f:
-                f.writelines(f'{x}\n' for x in self.train_test_split)
+                f.writelines(f'{x},{y}\n' for x, y in zip(sequences, train_test_split))
 
             # Save weights and biases to csv files
             if self.encoder_nodes:

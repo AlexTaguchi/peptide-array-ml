@@ -423,40 +423,40 @@ class NeuralNetwork():
 
 #=== CONTEXT-AWARE NEURAL NETWORK ===#
 class ContextAware():
-    """Neural Network for Peptide Binding Predictions with Context
+    """Neural Network for Peptide Binding Predictions with Optional Context
 
     Architecture:
         Input: Sequence represented as [residue number x amino acid] matrix
         Context: Numerical vector representation of context
         Model:
-            [1] Linear encoder converts one-hot amino acid representation to dense representation
+            [1] Linear embedder converts one-hot amino acid representation to dense representation
             [2] Feed-forward neural network with context vector appended between hidden layers
             [3] Output regression layer predicts binding value
     """
 
-    def __init__(self, sequences, context, data, amino_acids='ADEFGHKLNPQRSVWY', batch_size=100,
-                 chem_encoder=False, encoder_nodes=10, evaluate_model=False, hidden_layers=2,
-                 hidden_nodes=100, layer_freeze=0, learn_rate=0.001, log_shift=100, train_fraction=0.9,
+    def __init__(self, sequences, context, data, amino_acids='ADEFGHKLNPQRSVWY', amino_embedder_nodes=10,
+                 batch_size=100, chemical_embedder=False, evaluate_model=False, hidden_layers=2, hidden_nodes=100,
+                 layer_freeze=0, learn_rate=0.001, log_shift=100, sequence_embedder_nodes=False, train_fraction=0.9,
                  train_steps=50000, transfer_learning=False, weight_folder='fits', weight_save=False):
         """Parameter and file structure initialization
 
         Arguments:
-            sequences {str} -- path to sequences
+            sequences {str} -- path to sequences with optional train and test split in second column
             context {str} -- path to context vectors (set to False for no context)
             data {str} -- path to binding data values (set to False for no data)
         
         Keyword Arguments:
             amino_acids {str} -- amino acid letter codes (default: {'ADEFGHKLNPQRSVWY'})
+            amino_embedder_nodes {int} -- number of features to describe amino acids (default: {10})
             batch_size {int} -- batch size for training (default: {100})
-            chem_encoder {str} -- path to amino acid properties to use as encoder (default: {False})
-            data {str/df} -- file path or dataframe of sequences and data (default: {'data/FNR.csv'})
-            encoder_nodes {int} -- number of features to describe amino acids (default: {10})
+            chemical_embedder {str} -- path to amino acid chemical embeddings (default: {False})
             evaluate_model {str} -- path to 'Model.pth' to evaluate model (default: {False})
             hidden_layers {int} -- number of hidden layers in neural network (default: {2})
             hidden_nodes {int} -- number of nodes per hidden layer of neural network (default: {100})
             layer_freeze {str} -- number of layers to freeze for transfer learning (default: {0})
             learn_rate {float} -- magnitude of gradient descent step (default: {0.001})
-            log_shift {int} -- value to shift data before applying logarithm (defaulf: {100})
+            log_shift {int} -- value to shift data before applying logarithm (default: {100})
+            sequence_embedder_nodes {int} -- sequence embedding size (default: {False})
             train_fraction {float} -- fraction of non-saturated data for training (default: {0.9})
             train_steps {int} -- number of training steps (default: {50000})
             transfer_learning {str} -- path to 'Model.pth' for transfer learning (default: {False})
@@ -471,26 +471,27 @@ class ContextAware():
         # Initialize parameters
         self.amino_acids = amino_acids
         self.batch_size = batch_size
-        self.chem_encoder = chem_encoder
-        self.encoder_nodes = encoder_nodes
+        self.chemical_embedder = chemical_embedder
+        self.amino_embedder_nodes = amino_embedder_nodes
         self.evaluate_model = evaluate_model
         self.hidden_layers = hidden_layers
         self.hidden_nodes = hidden_nodes
         self.layer_freeze = layer_freeze
         self.learn_rate = learn_rate
         self.log_shift = log_shift
+        self.sequence_embedder_nodes = sequence_embedder_nodes
         self.train_fraction = train_fraction
         self.train_steps = train_steps
         self.transfer_learning = transfer_learning
         self.weight_folder = weight_folder
         self.weight_save = weight_save
 
-        # Assert that encoder_nodes is set correctly
-        if self.chem_encoder:
-            with open('data/chem.txt', 'r') as f:
+        # Assert that amino_embedder_nodes is set correctly
+        if self.chemical_embedder:
+            with open(self.chemical_embedder, 'r') as f:
                 properties = f.readlines()[-1].split()
                 properties = len([x for x in properties if x.lstrip('-').replace('.', '', 1).isdigit()])
-                assert self.encoder_nodes == properties, f'Set encoder_nodes={properties} to match chem_encoder!'
+                assert self.amino_embedder_nodes == properties, f'amino_embedder_nodes must equal {properties}!'
             del properties, f
         
         # Store parameter settings
@@ -530,8 +531,8 @@ class ContextAware():
         import matplotlib.pyplot as plt
 
         # Represent amino acids with measured chemical parameters
-        if self.chem_encoder:
-            chem_params = pd.read_csv('data/chem.txt', delimiter='\t', header=0, index_col=0, skiprows=1)
+        if self.chemical_embedder:
+            chem_params = pd.read_csv(self.chemical_embedder, delimiter='\t', header=0, index_col=0, skiprows=1)
             chem_params = torch.from_numpy(chem_params.loc[list(self.amino_acids)].values).float()
         else:
             chem_params = 0
@@ -607,43 +608,47 @@ class ContextAware():
         # Neural network architecture
         class Architecture(nn.Module):
 
-            def __init__(self, inputs, encoder, nodes, layers, contexts, outputs):
+            def __init__(self, amino_embedder, contexts, inputs, layers, nodes, outputs, sequence_embedder):
                 super().__init__()
 
                 # Layer nodes
-                self.inputs = inputs
-                self.encoder = encoder
+                self.amino_embedder = amino_embedder
                 self.contexts = contexts
-                self.hidden = max_len * encoder if encoder else max_len * inputs
+                self.inputs = inputs
                 self.outputs = outputs
+                self.sequence_embedder = sequence_embedder if sequence_embedder else nodes
 
-                # Amino acid encoder
-                if encoder and chem_params:
-                    self.encoder_layer = nn.Linear(encoder, encoder, bias=True)
-                elif encoder:
-                    self.encoder_layer = nn.Linear(inputs, encoder, bias=False)
+                # Amino acid embedder layer
+                if amino_embedder and chem_params:
+                    self.amino_embedder_layer = nn.Linear(amino_embedder, amino_embedder, bias=True)
+                elif amino_embedder:
+                    self.amino_embedder_layer = nn.Linear(inputs, amino_embedder, bias=False)
                 
                 # Hidden layers
-                self.hidden_layers = nn.ModuleList([nn.Linear(self.hidden + contexts, nodes, bias=True)])
-                self.hidden_layers.extend([nn.Linear(nodes + contexts, nodes, bias=True) for _ in range(layers - 1)])
+                hidden_input = max_len * amino_embedder if amino_embedder else max_len * inputs
+                self.hidden_layers = nn.ModuleList([nn.Linear(hidden_input + contexts, nodes, bias=True)])
+                self.hidden_layers.extend([nn.Linear(nodes + contexts, nodes, bias=True) for _ in range(layers - 2)])
+
+                # Sequence embedder layer
+                self.hidden_layers.append(nn.Linear(nodes + contexts, self.sequence_embedder, bias=True))
 
                 # Output layer
-                self.output_layer = nn.Linear(nodes + contexts, outputs, bias=True)
+                self.output_layer = nn.Linear(self.sequence_embedder + contexts, outputs, bias=True)
 
             def forward(self, seqs, cont):
-                if self.encoder:
+                if self.amino_embedder:
                     seqs = seqs.view(-1, self.inputs)
                     seqs = torch.mm(seqs, chem_params) if chem_params else seqs
-                    seqs = self.encoder_layer(seqs)
-                    seqs = seqs.view(-1, max_len * self.encoder)
+                    seqs = self.amino_embedder_layer(seqs)
+                    seqs = seqs.view(-1, max_len * self.amino_embedder)
                 for x in self.hidden_layers:
                     seqs = torch.cat((seqs, cont), dim=1) if self.contexts else seqs
                     seqs = functional.relu(x(seqs))
                 return self.output_layer(torch.cat((seqs, cont), dim=1) if self.contexts else seqs) 
 
-        net = Architecture(inputs=len(self.amino_acids), encoder=self.encoder_nodes, nodes=self.hidden_nodes,
-                           layers=self.hidden_layers, contexts=train_context.shape[1] if self.context else 0,
-                           outputs=train_data.shape[1])
+        net = Architecture(amino_embedder=self.amino_embedder_nodes, contexts=train_context.shape[1] if self.context else 0,
+                           inputs=len(self.amino_acids), layers=self.hidden_layers, nodes=self.hidden_nodes,
+                           outputs=train_data.shape[1], sequence_embedder=self.sequence_embedder_nodes)
         print('\nARCHITECTURE:')
         print(net)
 
@@ -660,7 +665,7 @@ class ContextAware():
 
             # Freeze initial layer weights and biases
             weight_bias_freeze = 2 * self.layer_freeze
-            weight_bias_freeze -= 1 if self.encoder_nodes else 0
+            weight_bias_freeze -= 1 if self.amino_embedder_nodes else 0
             for parameter in net.parameters():
                 if weight_bias_freeze <= 0:
                     break
@@ -732,8 +737,8 @@ class ContextAware():
         print(f'Correlation Coefficient: train|test – {train_correlation:.3f}|{test_correlation:.3f}')
 
         # Extract weights from model
-        if self.encoder_nodes:
-            encoder_layer = net.encoder_layer.weight.data.transpose(0, 1).numpy()
+        if self.amino_embedder_nodes:
+            embedder_layer = net.amino_embedder_layer.weight.data.transpose(0, 1).numpy()
         hidden_layer = [[x.weight.data.transpose(0, 1).numpy(),
                         x.bias.data.numpy()]for x in net.hidden_layers]
         output_layer = [net.output_layer.weight.data.transpose(0, 1).numpy(),
@@ -759,11 +764,11 @@ class ContextAware():
         ax1[1].set_title(f'Test Correlation: {test_correlation:.3f}', fontsize=15)
 
         # Amino acid similarity matrix
-        if self.encoder_nodes and not self.chem_encoder:
-            amino_similar = np.linalg.norm(encoder_layer, axis=1)
-            amino_similar = np.array([self.encoder_nodes * [magnitude] for magnitude in amino_similar])
-            amino_similar = np.dot((encoder_layer / amino_similar),
-                                   np.transpose(encoder_layer / amino_similar))
+        if self.amino_embedder_nodes and not self.chemical_embedder:
+            amino_similar = np.linalg.norm(embedder_layer, axis=1)
+            amino_similar = np.array([self.amino_embedder_nodes * [magnitude] for magnitude in amino_similar])
+            amino_similar = np.dot((embedder_layer / amino_similar),
+                                   np.transpose(embedder_layer / amino_similar))
             fig2 = plt.matshow(amino_similar, cmap='coolwarm')
             plt.xticks(range(len(self.amino_acids)), self.amino_acids)
             plt.yticks(range(len(self.amino_acids)), self.amino_acids)
@@ -782,10 +787,10 @@ class ContextAware():
                 f.writelines(f'{x},{y}\n' for x, y in zip(sequences, train_test_split))
 
             # Save weights and biases to csv files
-            if self.encoder_nodes:
-                np.savetxt(f'{directory}/W1.txt', encoder_layer, delimiter=',')
-            if self.chem_encoder:
-                np.savetxt(f'{directory}/B1.txt', net.AminoLayer.bias.data.numpy(), delimiter=',')
+            if self.amino_embedder_nodes:
+                np.savetxt(f'{directory}/W1.txt', embedder_layer, delimiter=',')
+            if self.chemical_embedder:
+                np.savetxt(f'{directory}/B1.txt', net.amino_embedder_layer.bias.data.numpy(), delimiter=',')
             for (m, n) in enumerate(hidden_layer):
                 np.savetxt(f'{directory}/W{str(m + 2)}.txt', n[0], delimiter=',')
                 np.savetxt(f'{directory}/B{str(m + 2)}.txt', n[1], delimiter=',')
@@ -813,7 +818,7 @@ class ContextAware():
             # Save figures
             fig1.savefig(f'{directory}/Correlation.png', bbox_inches='tight')
             plt.close(fig1)
-            if self.encoder_nodes and not self.chem_encoder:
+            if self.amino_embedder_nodes and not self.chemical_embedder:
                 fig2.figure.savefig(f'{directory}/Similarity.png', bbox_inches='tight')
                 plt.close()
 

@@ -1,6 +1,7 @@
 #=== MODULES ===#
 import argparse
 import datetime
+from multiprocessing import Pool
 import numpy as np
 import os
 import pandas as pd
@@ -435,8 +436,8 @@ class ContextAware():
     """
 
     def __init__(self, sequences, context, data, amino_acids='ADEFGHKLNPQRSVWY', amino_embedder_nodes=10,
-                 batch_size=100, chemical_embedder=False, evaluate_model=False, hidden_layers=2, hidden_nodes=100,
-                 layer_freeze=0, learn_rate=0.001, log_shift=100, saturation_threshold=0.99,
+                 batch_size=100, chemical_embedder=False, evaluate_model=False, fit_sample=False, hidden_layers=2,
+                 hidden_nodes=100, layer_freeze=0, learn_rate=0.001, log_shift=100, saturation_threshold=0.99,
                  sequence_embedder_nodes=False, train_fraction=0.9, train_steps=50000, transfer_learning=False,
                  weight_folder='fits', weight_save=False):
         """Parameter and file structure initialization
@@ -452,6 +453,7 @@ class ContextAware():
             batch_size {int} -- batch size for training (default: {100})
             chemical_embedder {str} -- path to amino acid chemical embeddings (default: {False})
             evaluate_model {str} -- path to 'Model.pth' to evaluate model (default: {False})
+            fit_sample {int} -- sample number to fit from data (default: {False})
             hidden_layers {int} -- number of hidden layers in neural network (default: {2})
             hidden_nodes {int} -- number of nodes per hidden layer of neural network (default: {100})
             layer_freeze {str} -- number of layers to freeze for transfer learning (default: {0})
@@ -476,6 +478,7 @@ class ContextAware():
         self.chemical_embedder = chemical_embedder
         self.amino_embedder_nodes = amino_embedder_nodes
         self.evaluate_model = evaluate_model
+        self.fit_sample = fit_sample
         self.hidden_layers = hidden_layers
         self.hidden_nodes = hidden_nodes
         self.layer_freeze = layer_freeze
@@ -493,14 +496,15 @@ class ContextAware():
         self.settings = {key: value for key, value in locals().items() if key != 'self'}
 
         # Read chemical embeddings
-        if self.chemical_embedder:
+        self.chemical_embedder = self.chemical_embedder if self.chemical_embedder else []
+        if len(self.chemical_embedder):
             amino_chemistry = pd.read_csv(self.chemical_embedder, delimiter='\t', header=0, index_col=0, skiprows=1)
             amino_chemistry = torch.from_numpy(amino_chemistry.loc[list(self.amino_acids)].values).float()
             self.chemical_embedder = amino_chemistry
 
             # Assert match between amino embedder nodes and chemical features
             chemical_features = amino_chemistry.shape[1]
-            assert self.amino_embedder_nodes == chemical_features, f'Set amino_embedder_nodes to {chemical_features}!'
+            assert self.amino_embedder_nodes == chemical_features, f'Set amino_embedder_nodes to {chemical_features}!'            
 
         # Generate file structure
         current_date = datetime.datetime.today().strftime('%Y-%m-%d')
@@ -539,6 +543,9 @@ class ContextAware():
         sequences = pd.read_csv(self.sequences, header=None)
         context = pd.read_csv(self.context, header=None).values if self.context else np.zeros((len(sequences), 1))
         data = np.log10(pd.read_csv(self.data, header=None).values + self.log_shift)
+
+        # Extract single sample from data
+        data = data[:, sample-1:sample] if self.fit_sample else data
 
         # Extract train test split assignments from sequences
         train_test_split = sequences.iloc[:, 1].tolist() if len(sequences.columns) > 1 else []
@@ -794,7 +801,7 @@ class ContextAware():
 
             # Save correlation coefficient to file
             with open(f'{directory}/Correlation.txt', 'w') as f:
-                f.write(f'Train: {test_correlation}')
+                f.write(f'Train: {train_correlation}\n')
                 f.write(f'Test: {test_correlation}')
             
             # Save training and testing losses
@@ -838,5 +845,7 @@ class ContextAware():
 
 #=== RUN PEPTIDE-ARRAY-ML ===#
 if __name__ == '__main__':
+    samples = pd.read_csv(param_dictionary['data'], header=None).values.shape[1]
     neural_network = ContextAware(**param_dictionary)
-    neural_network.fit()
+    pool = Pool()
+    pool.map(neural_network.fit, range(1, samples + 1 if param_dictionary['fit_sample'] else 2))

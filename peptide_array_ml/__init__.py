@@ -438,8 +438,8 @@ class ContextAware():
     def __init__(self, sequences, context, data, amino_acids='ADEFGHKLNPQRSVWY', amino_embedder_nodes=10,
                  batch_size=100, chemical_embedder=False, evaluate_model=False, fit_sample=False, hidden_layers=2,
                  hidden_nodes=100, layer_freeze=0, learn_rate=0.001, log_shift=100, saturation_threshold=0.99,
-                 sequence_embedder_nodes=False, train_fraction=0.9, train_steps=50000, transfer_learning=False,
-                 weight_folder='fits', weight_save=False):
+                 save_predictions=False, save_weights=False, sequence_embedder_nodes=False, train_fraction=0.9,
+                 train_steps=50000, transfer_learning=False, weight_folder='fits'):
         """Parameter and file structure initialization
 
         Arguments:
@@ -460,12 +460,13 @@ class ContextAware():
             learn_rate {float} -- magnitude of gradient descent step (default: {0.001})
             log_shift {int} -- value to shift data before applying logarithm (default: {100})
             saturation_threshold {float} -- saturation level to exclude from training (default: {0.99})
+            save_predictions {bool} -- save predictions to file (default: {False})
+            save_weights {bool} -- save weights to file (default: {False})
             sequence_embedder_nodes {int} -- sequence embedding size (default: {False})
             train_fraction {float} -- fraction of non-saturated data for training (default: {0.9})
             train_steps {int} -- number of training steps (default: {50000})
             transfer_learning {str} -- path to 'Model.pth' for transfer learning (default: {False})
             weight_folder {str} -- directory name to save weights and biases (default: {'fits'})
-            weight_save {bool} -- save weights to file (default: {False})
         """
         # Initialize input paths
         self.sequences = sequences
@@ -485,12 +486,13 @@ class ContextAware():
         self.learn_rate = learn_rate
         self.log_shift = log_shift
         self.saturation_threshold = saturation_threshold
+        self.save_predictions = save_predictions
+        self.save_weights = save_weights
         self.sequence_embedder_nodes = sequence_embedder_nodes
         self.train_fraction = train_fraction
         self.train_steps = train_steps
         self.transfer_learning = transfer_learning
         self.weight_folder = weight_folder
-        self.weight_save = weight_save
         
         # Store parameter settings
         self.settings = {key: value for key, value in locals().items() if key != 'self'}
@@ -827,16 +829,19 @@ class ContextAware():
             # Save model
             torch.save(net.state_dict(), f'{directory}/Model.pth')
 
+            # Save log file of most recent fit
+            with open(os.path.join(self.weight_folder, f'{self.weight_folder}.log'), 'w') as f:
+                f.write(f'{datetime.datetime.now()},{directory}\n')
+        
+        # Save all predictions
+        if self.save_predictions:
+            
             # Save all predictions
             with open(f'{directory}/Predictions.txt', 'w') as f:
                 for i in range(0, len(sequences_one_hot), 1000):
                     predictions = net(torch.from_numpy(sequences_one_hot[i:i+1000]).float(),
                                       torch.from_numpy(context[i:i+1000]).float()).data.numpy()
                     np.savetxt(f, 10**(predictions) - self.log_shift, fmt='%.5f', delimiter=',')
-
-            # Save log file of most recent fit
-            with open(os.path.join(self.weight_folder, f'{self.weight_folder}.log'), 'w') as f:
-                f.write(f'{datetime.datetime.now()},{directory}\n')
 
         # Show figures
         else:

@@ -22,21 +22,19 @@ args = parser.parse_args()
 # Create dictionary of imported parameters
 parameter_imports = {}
 if args.params:
-    with open(args.params, 'r') as parameter_file:
-        for row in parameter_file.readlines():
-            key, value = row.split(',')
-            value = value[:-1]
-            if value.isdigit():
-                param = int(value)
-            elif value[0].isdigit():
-                param = float(value)
-            elif value.lower() == 'true':
-                param = True
-            elif value.lower() == 'false':
-                param = False
-            else:
-                param = value
-            parameter_imports[key] = param
+    argument_parameters = pd.read_csv(args.params, header=None, index_col=0, squeeze=True).str.strip()
+    for index, value in argument_parameters.iteritems():
+        if value.isdigit():
+            param = int(value)
+        elif value[0].isdigit():
+            param = float(value)
+        elif value.lower() == 'true':
+            param = True
+        elif value.lower() == 'false':
+            param = False
+        else:
+            param = value
+        parameter_imports[index] = param
 
 # Store current module and parameter scope
 module_scope = dir()
@@ -64,8 +62,8 @@ class NeuralNetwork():
     """
 
     def __init__(self, chem_encoder=False, data='data/FNR.csv', encoder_nodes=10,
-                 evaluation_mode=False, hidden_layers=2, hidden_nodes=100, train_fraction=0.9,
-                 train_steps=50000, train_test_split=[], weight_folder='fits', weight_save=False):
+                 evaluation_mode=False, hidden_layers=2, hidden_nodes=100, save_weights=False,
+                 train_fraction=0.9, train_steps=50000, train_test_split=[], weight_folder='fits'):
         """Parameter and file structure initialization
         
         Keyword Arguments:
@@ -75,24 +73,24 @@ class NeuralNetwork():
             evaluation_mode {str} -- path to pretrained 'Model.pth' neural network (default: {False})
             hidden_layers {int} -- number of hidden layers in neural network (default: {2})
             hidden_nodes {int} -- number of nodes per hidden layer of neural network (default: {100})
+            save_weights {bool} -- save weights to file (default: {False})
             train_fraction {float} -- fraction of non-saturated data for training (default: {0.9})
             train_steps {int} -- number of training steps (default: {50000})
             train_test_split {list} -- train (0) and test (1) split assignments (default: {[]})
             weight_folder {str} -- directory name to save weights and biases (default: {'fits'})
-            weight_save {bool} -- save weights to file (default: {False})
         """
         # Initialize variables
         self.chem_encoder = chem_encoder
-        self.encoder_nodes = encoder_nodes
         self.data = data
+        self.encoder_nodes = encoder_nodes
+        self.evaluation_mode = evaluation_mode
         self.hidden_layers = hidden_layers
         self.hidden_nodes = hidden_nodes
-        self.train_test_split = train_test_split
-        self.evaluation_mode = evaluation_mode
+        self.save_weights = save_weights
         self.train_fraction = train_fraction
         self.train_steps = train_steps
+        self.train_test_split = train_test_split
         self.weight_folder = weight_folder
-        self.weight_save = weight_save
 
         # Assert that encoder_nodes is set correctly
         if self.chem_encoder:
@@ -112,7 +110,7 @@ class NeuralNetwork():
 
         # Generate file structure
         current_date = datetime.datetime.today().strftime('%Y-%m-%d')
-        if self.weight_save:
+        if self.save_weights:
 
             # Create parent folder
             if not os.path.exists(self.weight_folder):
@@ -369,7 +367,7 @@ class NeuralNetwork():
             plt.clim(-1, 1)
 
         # Save run to file
-        if self.weight_save:
+        if self.save_weights:
 
             # Create path to new sample folder
             directory = f'{self.run_folder}/Sample{str(abs(sample))}'
@@ -475,9 +473,9 @@ class ContextAware():
 
         # Initialize parameters
         self.amino_acids = amino_acids
+        self.amino_embedder_nodes = amino_embedder_nodes
         self.batch_size = batch_size
         self.chemical_embedder = chemical_embedder
-        self.amino_embedder_nodes = amino_embedder_nodes
         self.evaluate_model = evaluate_model
         self.fit_sample = fit_sample
         self.hidden_layers = hidden_layers

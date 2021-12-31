@@ -13,9 +13,10 @@ layer_freeze,0
 learn_rate,0.001
 log_shift,100
 saturation_threshold,0.99
+save_predictions,false
+save_weights,true
 sequence_embedder_nodes,50
 train_fraction,0.9
 train_steps,50000
 transfer_learning,false
 weight_folder,fits
-weight_save,true

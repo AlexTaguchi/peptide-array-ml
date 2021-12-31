@@ -510,7 +510,7 @@ class ContextAware():
 
         # Generate file structure
         current_date = datetime.datetime.today().strftime('%Y-%m-%d')
-        if self.weight_save:
+        if self.save_weights:
 
             # Create parent folder
             if not os.path.exists(self.weight_folder):
@@ -780,7 +780,7 @@ class ContextAware():
             plt.clim(-1, 1)
 
         # Save run to file
-        if self.weight_save:
+        if self.save_weights:
 
             # Create path to new sample folder
             directory = f'{self.run_folder}/Sample{str(abs(sample))}'

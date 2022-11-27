@@ -1,5 +1,5 @@
 # peptide-array-ml
-Neural network modeling of peptide sequence binding data
+Neural network modeling of peptide sequences and binding data
 
 ### Installation
 1) Download and install the Anaconda distribution of Python 3 (https://www.anaconda.com/download/)
@@ -11,7 +11,7 @@ Neural network modeling of peptide sequence binding data
 ### 2020 Combinatorial Science Publication
 Taguchi, A. T., Boyd, J., Diehnelt, C. W., Legutki, J. B., Zhao, Z-G., and Woodbury, N. W. (2020) *Combinatorial Science*, **22** (10), 500-508
 DOI: 10.1021/acscombsci.0c00003
-#### Scripts to reproduce figures (`publications/2020_Combinatorial_Science`):
+#### Scripts to reproduce figures in `publications/2020_Combinatorial_Science`:
 - **fit_targets.py**: Model all nine protein targets with a neural network. The parameter settings (`Parameters.txt`), trained models (`Model.pth`), predicted vs real correlation plots (`Correlation.png`), and amino acid similarity matrix plots (`Similarity.png`) are all saved along with other metadata in `fits/`.
 - **multifit_target.py**: Fit a neural network multiple times to the same target. This is useful for estimating the variability in model performance and predictions.
 - **extrapolate_binding.py**: Train a neural network on weaker binding values, and then use it to predict stronger binding values not previously seen by the model.

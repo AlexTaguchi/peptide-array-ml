@@ -423,6 +423,6 @@ class NeuralNetwork2020():
 #=== RUN PEPTIDE-ARRAY-ML ===#
 if __name__ == '__main__':
     samples = pd.read_csv(param_dictionary['data'], header=None).values.shape[1]
-    neural_network = NeuralNetwork(**param_dictionary)
+    neural_network = NeuralNetwork2020(**param_dictionary)
     pool = Pool()
     pool.map(neural_network.fit, range(1, samples + 1 if param_dictionary['fit_sample'] else 2))

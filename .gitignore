@@ -104,15 +104,15 @@ venv.bak/
 .mypy_cache/
 
 # peptide-array-ml
-fits/*
-!fits/2020-01-01
-!fits/2020-01-02
-!fits/2020-01-03
-!fits/2020-01-04
-!fits/2020-01-05
-!fits/2020-01-06
-!fits/2020-01-07
-!fits/2020-01-08
-!fits/2020-01-09
-!fits/2020-01-10
+publications/2020_Combinatorial_Science/fits/*
+!publications/2020_Combinatorial_Science/fits/2020-01-01
+!publications/2020_Combinatorial_Science/fits/2020-01-02
+!publications/2020_Combinatorial_Science/fits/2020-01-03
+!publications/2020_Combinatorial_Science/fits/2020-01-04
+!publications/2020_Combinatorial_Science/fits/2020-01-05
+!publications/2020_Combinatorial_Science/fits/2020-01-06
+!publications/2020_Combinatorial_Science/fits/2020-01-07
+!publications/2020_Combinatorial_Science/fits/2020-01-08
+!publications/2020_Combinatorial_Science/fits/2020-01-09
+!publications/2020_Combinatorial_Science/fits/2020-01-10
 .DS_Store

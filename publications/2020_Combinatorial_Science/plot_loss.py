@@ -1,10 +1,14 @@
 # Plot train and test loss
 
+# Add project root to path
+import sys
+sys.path.append('../..')
+
 # Import modules
 import datetime
 import matplotlib.pyplot as plt
 import os
-from peptide_array_ml import NeuralNetwork
+from peptide_array_ml.legacy import NeuralNetwork2020
 import re
 
 # Set up figure for plotting
@@ -15,7 +19,7 @@ targets = ['Diaphorase', 'Ferredoxin', 'FNR', 'PD1', 'PDL1', 'TNFa', 'TNFR', 'Tr
 for i, target in enumerate(targets):
 
     # Train model
-    nn = NeuralNetwork(filename=f'data/{target}.csv', weight_save=True)
+    nn = NeuralNetwork2020(filename=f'../../data/{target}.csv', save_weights=True)
     nn.fit()
 
     # Read in train and test loss

@@ -1,11 +1,15 @@
 # Model peptide array binding values with neural network
 
+# Add project root to path
+import sys
+sys.path.append('../..')
+
 # Import modules
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 import os
-from peptide_array_ml import NeuralNetwork
+from peptide_array_ml.legacy import NeuralNetwork2020
 from scipy.stats import gaussian_kde
 
 # Fit target data
@@ -13,7 +17,7 @@ fig, ax = plt.subplots(3, 3)
 targets = ['Diaphorase.csv', 'Ferredoxin.csv', 'FNR.csv', 'PD1.csv',
            'PDL1.csv', 'TNFa.csv', 'TNFR.csv', 'Transferrin.csv', 'Fc.csv']
 for i, target in enumerate(targets):
-    nn = NeuralNetwork(data=f'data/{target}', weight_save=True)
+    nn = NeuralNetwork2020(data=f'../../data/{target}', save_weights=True)
     nn.fit()
     nn.evaluation_mode = os.path.join(nn.run_folder, 'Sample1/Model.pth')
     x, y = nn.fit()[2:]
@@ -27,7 +31,7 @@ for i, target in enumerate(targets):
     limits = [min(x) - padding, max(x) + padding]
 
     # Plot scatter plot colored by density
-    ax[i//3, i%3].scatter(x, y, c=z, s=2, edgecolor='')
+    ax[i//3, i%3].scatter(x, y, c=z, s=2, edgecolor=['none'])
     ax[i//3, i%3].plot(limits, limits, 'k')
     ax[i//3, i%3].xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
     ax[i//3, i%3].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
@@ -42,4 +46,4 @@ for i, target in enumerate(targets):
 ax[2, 1].set_xlabel(r'Log$_{10}$(Measured Fluorescence Counts)', fontname='Arial', fontsize=20)
 ax[1, 0].set_ylabel(r'Log$_{10}$(Predicted Fluorescence Counts)', fontname='Arial', fontsize=20)
 fig.set_size_inches((10, 10), forward=False)
-plt.savefig('figures/target_fits.jpg', dpi=300)
+plt.savefig('figures/target_fits2.jpg', dpi=300)

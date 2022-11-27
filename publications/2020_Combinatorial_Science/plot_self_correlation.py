@@ -11,19 +11,19 @@ from scipy.stats import gaussian_kde
 data = {}
 
 # Read HT-V13 peptide array data
-peptide_array = pd.read_excel('data/HT-V13.xlsx', index_col=0, skiprows=1,
+peptide_array = pd.read_excel('../../data/HT-V13.xlsx', index_col=0, skiprows=1,
                               usecols=[0, 2, 3, 6, 7, 10, 11])
 for i, target in enumerate(['Diaphorase', 'Ferredoxin', 'FNR']):
     data[target] = np.log10(peptide_array.iloc[:, 2*i:2*i+2].values + 100)
 
 # Read CIMw189-s9 peptide array data
-peptide_array = pd.read_excel('data/CIMw189-s9.xlsx', index_col=0, skiprows=6,
+peptide_array = pd.read_excel('../../data/CIMw189-s9.xlsx', index_col=0, skiprows=6,
                               usecols=[2, 4, 5, 9, 10, 13, 14, 16, 17, 25, 26])
 for i, target in enumerate(['PDL1', 'PD1', 'TNFα', 'TNFR', 'Fc']):
     data[target] = np.log10(peptide_array.iloc[:, 2*i:2*i+2].values + 100)
 
 # Read CIMw174-s3 peptide array data
-peptide_array = pd.read_excel('data/CIMw174-s3.xlsx', index_col=0, skiprows=3,
+peptide_array = pd.read_excel('../../data/CIMw174-s3.xlsx', index_col=0, skiprows=3,
                               usecols=[1, 5, 6])
 for i, target in enumerate(['Transferrin']):
     data[target] = np.log10(peptide_array.iloc[:, 2*i:2*i+2].values + 100)
@@ -43,7 +43,7 @@ for i, target in enumerate(targets):
     limits = [min(x) - padding, max(x) + padding]
 
     # Plot scatter plot colored by density
-    ax[i//3, i%3].scatter(x, y, c=z, s=2, edgecolor='')
+    ax[i//3, i%3].scatter(x, y, c=z, s=2, edgecolor=['none'])
     ax[i//3, i%3].plot(limits, limits, 'k')
     ax[i//3, i%3].xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
     ax[i//3, i%3].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))

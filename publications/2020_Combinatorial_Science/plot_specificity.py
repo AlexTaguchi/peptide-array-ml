@@ -1,12 +1,16 @@
 # Plot measured vs predicted binding specificity between targets
 
+# Add project root to path
+import sys
+sys.path.append('../..')
+
 # Import modules
 from itertools import combinations
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-from peptide_array_ml import NeuralNetwork
+from peptide_array_ml.legacy import NeuralNetwork2020
 import re
 from scipy.stats import gaussian_kde
 
@@ -28,7 +32,7 @@ correlations = []
 for i, target_pair in enumerate(combinations(['Diaphorase', 'FNR', 'Ferredoxin'], 2)):
 
     # Import binding datasets
-    data = [pd.read_csv(f'data/{target}.csv', header=None)[1].values for target in target_pair]
+    data = [pd.read_csv(f'../../data/{target}.csv', header=None)[1].values for target in target_pair]
 
     # Randomly split into train and test sets
     train_test_split = np.random.choice(len(data[0]), 90000, replace=False)
@@ -37,7 +41,7 @@ for i, target_pair in enumerate(combinations(['Diaphorase', 'FNR', 'Ferredoxin']
     # Evaluate model for target pair
     specificity = []
     for target in target_pair:
-        nn = NeuralNetwork(data=f'data/{target}.csv', train_test_split=train_test_split,
+        nn = NeuralNetwork2020(data=f'../../data/{target}.csv', train_test_split=train_test_split,
                            evaluation_mode=f'{directory}{fits[target]}/Sample1/Model.pth')
         specificity.append(nn.fit()[2:])
     
@@ -55,7 +59,7 @@ for i, target_pair in enumerate(combinations(['Diaphorase', 'FNR', 'Ferredoxin']
     correlations.append(f'{target_pair[0]}-{target_pair[1]}: {correlation:.3f}')
 
     # Plot measured and predicted log binding ratios
-    ax[i, 0].scatter(x, y, c=z, s=2, edgecolor='')
+    ax[i, 0].scatter(x, y, c=z, s=2, edgecolor=['none'])
     ax[i, 0].plot(limits, limits, 'k')
     ax[i, 0].set_xlim(limits)
     ax[i, 0].set_title(f'{target_pair[0]}-{target_pair[1]}', fontname='Arial', fontsize=15)
@@ -68,7 +72,7 @@ for i, target_pair in enumerate(combinations(['Diaphorase', 'FNR', 'Ferredoxin']
 for i, target_pair in enumerate(combinations(['PD1', 'PDL1', 'TNFR', 'TNFa'], 2)):
 
     # Import binding datasets
-    data = [pd.read_csv(f'data/{target}.csv', header=None)[1].values for target in target_pair]
+    data = [pd.read_csv(f'../../data/{target}.csv', header=None)[1].values for target in target_pair]
 
     # Randomly split into train and test sets
     train_test_split = np.random.choice(len(data[0]), 90000, replace=False)
@@ -77,7 +81,7 @@ for i, target_pair in enumerate(combinations(['PD1', 'PDL1', 'TNFR', 'TNFa'], 2)
     # Evaluate model for target pair
     specificity = []
     for target in target_pair:
-        nn = NeuralNetwork(data=f'data/{target}.csv', train_test_split=train_test_split,
+        nn = NeuralNetwork2020(data=f'../../data/{target}.csv', train_test_split=train_test_split,
                            evaluation_mode=f'{directory}{fits[target]}/Sample1/Model.pth')
         specificity.append(nn.fit()[2:])
     
@@ -96,7 +100,7 @@ for i, target_pair in enumerate(combinations(['PD1', 'PDL1', 'TNFR', 'TNFa'], 2)
     
     # Plot measured and predicted target specificity
     target_pair = [target if target != 'TNFa' else 'TNFα' for target in target_pair]
-    ax[i%3, i//3 + 2].scatter(x, y, c=z, s=2, edgecolor='')
+    ax[i%3, i//3 + 2].scatter(x, y, c=z, s=2, edgecolor=['none'])
     ax[i%3, i//3 + 2].plot(limits, limits, 'k')
     ax[i%3, i//3 + 2].set_xlim(limits)
     ax[i%3, i//3 + 2].set_title(f'{target_pair[0]}-{target_pair[1]}', fontname='Arial', fontsize=15)

@@ -15,9 +15,9 @@ fig2, ax2 = plt.subplots(1, 3)
 # HT-V13: Diaphorase - Diaphorase, Ferredoxin, FNR
 # CIMw189-s9: Fc - Fc, PD1, PDL1, TNFa, TNFR
 # CIMw174-s3: Transferrin - Transferrin
-targets = {'HT-V13': 'data/Diaphorase.csv',
-           'CIMw189-s9': 'data/Fc.csv',
-           'CIMw174-s3': 'data/Transferrin.csv'}
+targets = {'HT-V13': '../../data/Diaphorase.csv',
+           'CIMw189-s9': '../../data/Fc.csv',
+           'CIMw174-s3': '../../data/Transferrin.csv'}
 
 # Plot length and amino acid distributions of targets
 for i, (array, target) in enumerate(targets.items()):

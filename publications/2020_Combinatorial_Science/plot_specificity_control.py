@@ -1,5 +1,9 @@
 # Plot measured vs predicted binding specificity between the same target
 
+# Add project root to path
+import sys
+sys.path.append('../..')
+
 # Import modules
 from itertools import combinations
 import matplotlib.pyplot as plt
@@ -7,7 +11,7 @@ from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 import os
 import pandas as pd
-from peptide_array_ml import NeuralNetwork
+from peptide_array_ml.legacy import NeuralNetwork2020
 import re
 from scipy.stats import gaussian_kde
 
@@ -18,19 +22,19 @@ correlations = []
 data = {}
 
 # Read HT-V13 peptide array data
-peptide_array = pd.read_excel('data/HT-V13.xlsx', header=None, index_col=0,
+peptide_array = pd.read_excel('../../data/HT-V13.xlsx', header=None, index_col=0,
                               skiprows=2, usecols=[0, 2, 3, 6, 7, 10, 11])
 for i, target in enumerate(['Diaphorase', 'Ferredoxin', 'FNR']):
     data[target] = peptide_array.iloc[:, 2*i:2*i+2]
 
 # Read CIMw189-s9 peptide array data
-peptide_array = pd.read_excel('data/CIMw189-s9.xlsx', header=None, index_col=0,
+peptide_array = pd.read_excel('../../data/CIMw189-s9.xlsx', header=None, index_col=0,
                               skiprows=7, usecols=[2, 4, 5, 9, 10, 13, 14, 16, 17, 25, 26])
 for i, target in enumerate(['PDL1', 'PD1', 'TNFα', 'TNFR', 'Fc']):
     data[target] = peptide_array.iloc[:, 2*i:2*i+2].drop(index='empty')
 
 # Read CIMw174-s3 peptide array data
-peptide_array = pd.read_excel('data/CIMw174-s3.xlsx', header=None, index_col=0,
+peptide_array = pd.read_excel('../../data/CIMw174-s3.xlsx', header=None, index_col=0,
                               skiprows=4, usecols=[1, 5, 6])
 for i, target in enumerate(['Transferrin']):
     data[target] = peptide_array.iloc[:, 2*i:2*i+2]
@@ -50,7 +54,7 @@ for i, target in enumerate(targets):
     data_1.columns = [0, 1]
     data_1 = data_1.groupby(0).mean().reset_index()
     data_1.name = target
-    nn = NeuralNetwork(data=data_1, train_test_split=train_test_split, weight_save=True)
+    nn = NeuralNetwork2020(data=data_1, train_test_split=train_test_split, save_weights=True)
     nn.fit()
     nn.evaluation_mode = os.path.join(nn.run_folder, 'Sample1/Model.pth')
     measured_1, predicted_1 = nn.fit()[2:]
@@ -60,7 +64,7 @@ for i, target in enumerate(targets):
     data_2.columns = [0, 1]
     data_2 = data_2.groupby(0).mean().reset_index()
     data_2.name = target
-    nn = NeuralNetwork(data=data_2, train_test_split=train_test_split, weight_save=True)
+    nn = NeuralNetwork2020(data=data_2, train_test_split=train_test_split, save_weights=True)
     nn.fit()
     nn.evaluation_mode = os.path.join(nn.run_folder, 'Sample1/Model.pth')
     measured_2, predicted_2 = nn.fit()[2:]
@@ -79,7 +83,7 @@ for i, target in enumerate(targets):
     correlations.append(f'{target}: {np.corrcoef(x, y)[0, 1]:.3f}')
 
     # Plot measured and predicted log binding ratios
-    ax[i//3, i%3].scatter(x, y, c=z, s=2, edgecolor='')
+    ax[i//3, i%3].scatter(x, y, c=z, s=2, edgecolor=['none'])
     ax[i//3, i%3].plot(limits, limits, 'k')
     ax[i//3, i%3].set_xlim(limits)
     ax[i//3, i%3].set_title(f'{target}', fontname='Arial', fontsize=15)

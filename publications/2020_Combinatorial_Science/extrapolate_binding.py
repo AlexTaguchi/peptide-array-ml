@@ -1,12 +1,16 @@
 # Extrapolate model trained on weaker peptide array binders to stronger binders
 
+# Add project root to path
+import sys
+sys.path.append('../..')
+
 # Import modules
 import datetime
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 import os
 import pandas as pd
-from peptide_array_ml import NeuralNetwork
+from peptide_array_ml.legacy import NeuralNetwork2020
 import re
 
 # Set up axes for plotting
@@ -18,14 +22,14 @@ targets = ['Diaphorase.csv', 'Ferredoxin.csv', 'FNR.csv', 'PD1.csv',
 for i, target in enumerate(targets):
 
     # Limit training set to peptides within five-fold of the weakest binder + 100
-    data = pd.read_csv(f'data/{target}', header=None)
+    data = pd.read_csv(f'../../data/{target}', header=None)
     threshold = 5 * (data[1].min() + 100)
 
     # Split peptide array into training (0) and test (1) sets
     train_test_split = [0 if x < threshold else 1 for x in data[1]]
 
     # Fit model to weakest binders on the peptide array
-    nn = NeuralNetwork(filename=f'data/{target}', train_test_split=train_test_split, weight_save=True)
+    nn = NeuralNetwork2020(filename=f'data/{target}', train_test_split=train_test_split, save_weights=True)
     nn.fit()
 
     # Find path to trained model

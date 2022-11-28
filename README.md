@@ -24,5 +24,8 @@ DOI: 10.1021/acscombsci.0c00003
 - **plot_loss.py**: Plot loss during model training.
 - **plot_distributions.py**: Plot length and amino acid distributions of the peptide arrays.
 
+### 2022 PLoS Computational Biology Publication
+Chowdhury, R., Taguchi, A. T., Kelbauskas, L., Stafford, P., Diehnelt, C. W., Zhao, Z-G., C. Williamson, P. C., Green, V., Woodbury, N. W. (2022) Submitted to *PLoS Computational Biology*
+
 ### License
 The use of these algorithms is protected under intellectual property filed by Arizona State University

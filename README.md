@@ -8,6 +8,10 @@ Neural network modeling of peptide sequences and binding data
    - Linux/Windows: `conda install pytorch torchvision cpuonly -c pytorch`
 3) Download this GitHub repository
 
+### Running on Command Line
+#### Call `__init__.py` with Python and provide custom arguments file:
+`python peptide_array_ml/__init__.py peptide_array_ml/arguments.txt`
+
 ### 2020 Combinatorial Science Publication
 Taguchi, A. T., Boyd, J., Diehnelt, C. W., Legutki, J. B., Zhao, Z-G., and Woodbury, N. W. (2020) *Combinatorial Science*, **22** (10), 500-508
 DOI: 10.1021/acscombsci.0c00003

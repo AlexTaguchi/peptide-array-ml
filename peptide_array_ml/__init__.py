@@ -21,7 +21,7 @@ args = parser.parse_args()
 # Create dictionary of imported parameters
 parameter_imports = {}
 if args.params:
-    argument_parameters = pd.read_csv(args.params, header=None, index_col=0, squeeze=True).str.strip()
+    argument_parameters = pd.read_csv(args.params, header=None, index_col=0).squeeze('columns').str.strip()
     for index, value in argument_parameters.iteritems():
         if value.isdigit():
             param = int(value)

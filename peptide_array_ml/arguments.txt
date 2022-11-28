@@ -1,7 +1,6 @@
 sequences,data/DM1A_sequence.csv
-context,data/DM1A_concentration.csv
 data,data/DM1A_data.csv
-amino_acids,ADEFGHKLNPQRSVWY
+amino_acids,ADEFGHKLNPQRSVWYX
 amino_embedder_nodes,10
 batch_size,100
 chemical_embedder,false
@@ -12,9 +11,10 @@ hidden_nodes,100
 layer_freeze,0
 learn_rate,0.001
 log_shift,100
+random_sequence_shifts,true
 saturation_threshold,0.99
 save_predictions,false
-save_weights,true
+save_weights,false
 sequence_embedder_nodes,50
 train_fraction,0.9
 train_steps,50000

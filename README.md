@@ -9,7 +9,11 @@ Neural network modeling of peptide sequences and binding data
 3) Download this GitHub repository
 
 ### Running on Command Line
-`python peptide_array_ml/__init__.py peptide_array_ml/arguments.txt`
+#### &emsp;Call \_\_init\_\_.py with Python and provide a csv-formatted arguments file as in the following example:
+    python peptide_array_ml/__init__.py peptide_array_ml/arguments.csv
+
+### Running with Scripts
+#### &emsp;See `publications` directory for examples
 
 ### Publications
 1. Chowdhury, R., Taguchi, A. T., Kelbauskas, L., Stafford, P., Diehnelt, C. W., Zhao, Z-G., C. Williamson, P. C., Green, V., Woodbury, N. W. (2022) Submitted to *PLoS Computational Biology*

@@ -6,7 +6,6 @@ import numpy as np
 import os
 import pandas as pd
 import random
-import re
 import torch
 import torch.nn as nn
 import torch.nn.functional as functional
@@ -46,7 +45,7 @@ if parameter_imports:
 # Store parameter settings
 parameter_scope = [x for x in dir() if x not in module_scope + ['module_scope']]
 parameter_locals = locals()
-param_dictionary = {x: parameter_locals[x] for x in parameter_scope}
+parameter_settings = {x: parameter_locals[x] for x in parameter_scope}
 
 
 #=== FEED-FORWARD NEURAL NETWORK ===#
@@ -54,14 +53,14 @@ class NeuralNetwork():
     """Neural Network for Modeling Peptide Array Sequence and Binding Values
 
     Architecture:
-        Input: Sequence represented as [residue number x amino acid] matrix
+        Input: Sequences represented as [sequence x resdiue number x one-hot amino acids]
         Model:
-            [1] Linear encoder converts one-hot amino acid representation to dense representation
-            [2] Feed-forward neural network with multiple hidden layers
-            [3] Output regression layer predicts binding value for each sample
+            [1] Linear encoder converts one-hot amino acids to dense representation
+            [2] Multiple hidden layers with ReLU activation functions
+            [3] Linear regression layer predicts binding value for each sample
     """
 
-    def __init__(self, sequences, data, amino_acids='ADEFGHKLNPQRSVWY', amino_embedder_nodes=10,
+    def __init__(self, sequences, data, amino_acids='ADEFGHKLNPQRSVWYX', amino_embedder_nodes=10,
                  batch_size=100, chemical_embedder=False, evaluate_model=False, fit_sample=False, hidden_layers=2,
                  hidden_nodes=100, layer_freeze=0, learn_rate=0.001, log_shift=100, saturation_threshold=0.99,
                  save_predictions=False, save_weights=False, sequence_embedder_nodes=False, train_fraction=0.9,
@@ -150,6 +149,28 @@ class NeuralNetwork():
             filename = os.path.basename(self.sequences).split('.')[0]
             self.run_folder = date_folder + '/Run' + str(old_runs + 1) + '-' + filename
             os.makedirs(self.run_folder)
+    
+    def convert_sequences_to_tokens(self, sequences, max_length, padding='right'):
+
+        # Pad sequences with X to max length
+        sequences_padded = sequences.str.pad(width=max_length, side=padding, fillchar='X')
+
+        # Tokenize sequences
+        amino_acid_indices = {aa: i for i, aa in enumerate(self.amino_acids)}
+        sequences_tokenized = sequences_padded.apply(lambda x: [amino_acid_indices[aa] for aa in x]).to_list()
+
+        return torch.tensor(sequences_tokenized)
+        
+    def convert_tokens_to_one_hot(self, tokens, random_shift=True):
+
+        # Randomly shift token residue positions
+        if random_shift:
+            shifts = (((tokens == len(self.amino_acids) - 1).sum(dim=1) + 1) * torch.rand(len(tokens))).int()
+            rows, columns = tokens.shape
+            new_indices = ((torch.arange(columns).view((columns, 1)).repeat((1, rows)) - shifts) % columns).T
+            tokens = torch.gather(tokens, 1, new_indices)
+            
+        return functional.one_hot(tokens, num_classes=len(self.amino_acids)).float()
 
     def fit(self, sample=1):
         """Train or evaluate neural network
@@ -157,7 +178,6 @@ class NeuralNetwork():
         Keyword Arguments:
             sample {int} -- sample identification number (default: {1})
         """
-
         # Randomize pytorch and numpy seed states
         torch.manual_seed(random.randint(1, 10**6))
         np.random.seed(random.randint(1, 10**6))
@@ -165,7 +185,7 @@ class NeuralNetwork():
         # Import matplotlib into new environment
         import matplotlib.pyplot as plt
 
-        # Import sequences, context, and data
+        # Import sequences and data
         sequences = pd.read_csv(self.sequences, header=None)
         data = np.log10(pd.read_csv(self.data, header=None).values + self.log_shift)
 
@@ -176,20 +196,16 @@ class NeuralNetwork():
         train_test_split = sequences.iloc[:, 1].tolist() if len(sequences.columns) > 1 else []
         sequences = sequences.iloc[:, 0]
 
-        # Clean sequences and remove trailing GSG
-        sequences.replace(re.compile(f'[^{self.amino_acids}]'), '', inplace=True)
+        # Clean sequences
+        sequences = sequences.str.strip()
+
+        # Remove trailing GSG
         if sum(sequences.str[-3:] == 'GSG') / len(sequences) > 0.99:
             sequences = sequences.str[:-3]
-
-        # Assign binary vector to each amino acid
-        amino_dict = {n: m for (m, n) in enumerate(self.amino_acids)}
-
-        # Create binary sequence matrix representation
-        max_len = int(sequences.str.len().max())
-        sequences_one_hot = np.zeros((len(sequences), len(self.amino_acids) * max_len), dtype='int8')
-        for (n, m) in enumerate(sequences):
-            amino_ind = [amino_dict[j] + (i * len(self.amino_acids)) for (i, j) in enumerate(m)]
-            sequences_one_hot[n][amino_ind] = 1
+        
+        # Tokenize sequences
+        max_length = int(sequences.str.len().max())
+        sequence_tokens = self.convert_sequences_to_tokens(sequences, max_length)
 
         # Randomly generate split between train and test sets if not specified
         if len(train_test_split) == 0:
@@ -205,9 +221,9 @@ class NeuralNetwork():
             train_test_split[train_split] = 0
 
         # Split into train and test sets
-        train_sequences = np.copy(sequences_one_hot[[x == 0 for x in train_test_split]])
+        train_sequences = sequence_tokens[[x == 0 for x in train_test_split]]
         train_data = np.copy(data[[x == 0 for x in train_test_split]])
-        test_sequences = np.copy(sequences_one_hot[[x == 1 for x in train_test_split]])
+        test_sequences = sequence_tokens[[x == 1 for x in train_test_split]]
         test_data = np.copy(data[[x == 1 for x in train_test_split]])
 
         # Find bin indices for uniformly distributed batch gradient descent
@@ -218,9 +234,7 @@ class NeuralNetwork():
         bin_ind = np.append(bin_ind, len(train_data))
 
         # Convert to PyTorch variable tensors
-        train_sequences = torch.from_numpy(train_sequences).float()
         train_data = torch.from_numpy(train_data).float()
-        test_sequences = torch.from_numpy(test_sequences).float()
         test_data = torch.from_numpy(test_data).float()
 
 
@@ -245,7 +259,7 @@ class NeuralNetwork():
                 self.amino_embedder_layer = nn.Linear(amino_input, amino_embeddings, bias=amino_bias)
                 
                 # Hidden layers
-                hidden_input = max_len * amino_embeddings if amino_embeddings else max_len * inputs
+                hidden_input = max_length * amino_embeddings if amino_embeddings else max_length * inputs
                 self.hidden_layers = nn.ModuleList([nn.Linear(hidden_input, nodes, bias=True)])
                 self.hidden_layers.extend([nn.Linear(nodes, nodes, bias=True) for _ in range(layers - 2)])
 
@@ -257,13 +271,12 @@ class NeuralNetwork():
 
             def forward(self, seqs):
                 if self.amino_embeddings:
-                    seqs = seqs.view(-1, self.inputs)
                     seqs = torch.mm(seqs, self.chemical_embeddings) if len(self.chemical_embeddings) else seqs
                     seqs = self.amino_embedder_layer(seqs)
-                    seqs = seqs.view(-1, max_len * self.amino_embeddings)
+                    seqs = seqs.view(-1, max_length * self.amino_embeddings)
                 for x in self.hidden_layers:
                     seqs = functional.relu(x(seqs))
-                return self.output_layer(seqs) 
+                return self.output_layer(seqs)
 
         net = Architecture(amino_embeddings=self.amino_embedder_nodes, chemical_embeddings=self.chemical_embedder,
                            inputs=len(self.amino_acids),
@@ -309,7 +322,7 @@ class NeuralNetwork():
                 train_ind[-1] = train_ind[-1] - 1
 
                 # Calculate loss
-                train_out = net(train_sequences[train_ind])
+                train_out = net(self.convert_tokens_to_one_hot(train_sequences[train_ind]))
                 loss = loss_function(train_out, train_data[train_ind])
 
                 # Weight optimization
@@ -325,8 +338,8 @@ class NeuralNetwork():
                     test_batch = random.sample(range(test_sequences.shape[0]), 1000)
 
                     # Train and test binding predictions
-                    train_prediction = net(train_sequences[train_batch])
-                    test_prediction = net(test_sequences[test_batch])
+                    train_prediction = net(self.convert_tokens_to_one_hot(train_sequences[train_batch]))
+                    test_prediction = net(self.convert_tokens_to_one_hot(test_sequences[test_batch]))
 
                     # Record train and test losses
                     train_loss = loss_function(train_prediction, train_data[train_batch])
@@ -345,13 +358,13 @@ class NeuralNetwork():
         # Determine correlation coefficients for optimized neural network
         train_batch = len(train_sequences) if len(train_sequences) < 10000 else 10000
         train_batch = random.sample(range(train_sequences.shape[0]), train_batch)
-        train_prediction = net(train_sequences[train_batch]).data.numpy()
+        train_prediction = net(self.convert_tokens_to_one_hot(train_sequences[train_batch])).data.numpy()
         train_real = train_data[train_batch].data.numpy()
         train_correlation = np.corrcoef(train_real.flatten(), train_prediction.flatten())[0, 1]
 
         test_batch = len(test_sequences) if len(test_sequences) < 10000 else 10000
         test_batch = random.sample(range(test_sequences.shape[0]), test_batch)
-        test_prediction = net(test_sequences[test_batch]).data.numpy()
+        test_prediction = net(self.convert_tokens_to_one_hot(test_sequences[test_batch])).data.numpy()
         test_real = test_data[test_batch].data.numpy()
         test_correlation = np.corrcoef(test_real.flatten(), test_prediction.flatten())[0, 1]
         print(f'Correlation Coefficient: train|test - {train_correlation:.3f}|{test_correlation:.3f}')
@@ -454,8 +467,8 @@ class NeuralNetwork():
             
             # Save all predictions
             with open(f'{directory}/Predictions.txt', 'w') as f:
-                for i in range(0, len(sequences_one_hot), 1000):
-                    predictions = net(torch.from_numpy(sequences_one_hot[i:i+1000]).float()).data.numpy()
+                for i in range(0, len(sequence_tokens), 1000):
+                    predictions = net(self.convert_tokens_to_one_hot(sequence_tokens[i:i+1000])).data.numpy()
                     np.savetxt(f, 10**(predictions) - self.log_shift, fmt='%.5f', delimiter=',')
 
         # Show figures
@@ -465,7 +478,7 @@ class NeuralNetwork():
 
 #=== RUN PEPTIDE-ARRAY-ML ===#
 if __name__ == '__main__':
-    samples = pd.read_csv(param_dictionary['data'], header=None).values.shape[1]
-    neural_network = NeuralNetwork(**param_dictionary)
+    samples = pd.read_csv(parameter_settings['data'], header=None).values.shape[1]
+    neural_network = NeuralNetwork(**parameter_settings)
     pool = Pool()
-    pool.map(neural_network.fit, range(1, samples + 1 if param_dictionary['fit_sample'] else 2))
+    pool.map(neural_network.fit, range(1, samples + 1 if parameter_settings['fit_sample'] else 2))

@@ -3,7 +3,7 @@ Neural network modeling of peptide sequences and binding data
 
 ### Installation
 1) Download and install the Anaconda distribution of Python 3 (https://www.anaconda.com/download/)
-2) Install PyTorch with one of the following commands in a terminal/command prompt (https://pytorch.org):
+2) Install PyTorch with one of the following commands in terminal/command prompt (https://pytorch.org):
    - Mac: `conda install pytorch torchvision -c pytorch`
    - Linux/Windows: `conda install pytorch torchvision cpuonly -c pytorch`
 3) Download this GitHub repository

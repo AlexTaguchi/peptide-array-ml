@@ -9,7 +9,6 @@ Neural network modeling of peptide sequences and binding data
 3) Download this GitHub repository
 
 ### Running on Command Line
-#### Call `__init__.py` with Python and provide custom arguments file:
 `python peptide_array_ml/__init__.py peptide_array_ml/arguments.txt`
 
 ### 2020 Combinatorial Science Publication

@@ -62,9 +62,9 @@ class NeuralNetwork():
 
     def __init__(self, sequences, data, amino_acids='ADEFGHKLNPQRSVWYX', amino_embedder_nodes=10,
                  batch_size=100, chemical_embedder=False, evaluate_model=False, fit_sample=False, hidden_layers=2,
-                 hidden_nodes=100, layer_freeze=0, learn_rate=0.001, log_shift=100, saturation_threshold=0.99,
-                 save_predictions=False, save_weights=False, sequence_embedder_nodes=False, train_fraction=0.9,
-                 train_steps=50000, transfer_learning=False, weight_folder='fits'):
+                 hidden_nodes=100, layer_freeze=0, learn_rate=0.001, log_shift=100, random_sequence_shifts=True,
+                 saturation_threshold=0.99, save_predictions=False, save_weights=False, sequence_embedder_nodes=False,
+                 train_fraction=0.9, train_steps=50000, transfer_learning=False, weight_folder='fits'):
         """Parameter and file structure initialization
 
         Arguments:
@@ -83,6 +83,7 @@ class NeuralNetwork():
             layer_freeze {str} -- number of layers to freeze for transfer learning (default: {0})
             learn_rate {float} -- magnitude of gradient descent step (default: {0.001})
             log_shift {int} -- value to shift data before applying logarithm (default: {100})
+            random_sequence_shifts {bool} -- randomly shift input sequence positions (default: {True})
             saturation_threshold {float} -- saturation level to exclude from training (default: {0.99})
             save_predictions {bool} -- save predictions to file (default: {False})
             save_weights {bool} -- save weights to file (default: {False})
@@ -108,6 +109,7 @@ class NeuralNetwork():
         self.layer_freeze = layer_freeze
         self.learn_rate = learn_rate
         self.log_shift = log_shift
+        self.random_sequence_shifts = random_sequence_shifts
         self.saturation_threshold = saturation_threshold
         self.save_predictions = save_predictions
         self.save_weights = save_weights
@@ -151,6 +153,16 @@ class NeuralNetwork():
             os.makedirs(self.run_folder)
     
     def convert_sequences_to_tokens(self, sequences, max_length, padding='right'):
+        """Convert sequence strings to token representation
+
+        Args:
+            sequences (series): Amino acid peptide sequences
+            max_length (int): Longest peptide sequence length
+            padding (str, optional): Side to pad sequences to max length. Defaults to 'right'.
+
+        Returns:
+            tensor: Token representation of sequences
+        """
 
         # Pad sequences with X to max length
         sequences_padded = sequences.str.pad(width=max_length, side=padding, fillchar='X')
@@ -161,10 +173,17 @@ class NeuralNetwork():
 
         return torch.tensor(sequences_tokenized)
         
-    def convert_tokens_to_one_hot(self, tokens, random_shift=True):
+    def convert_tokens_to_one_hot(self, tokens):
+        """Convert sequence tokens to one-hot representation
 
+        Args:
+            tokens (tensor): Token representation of sequences
+
+        Returns:
+            tensor: One-hot representation of sequences
+        """
         # Randomly shift token residue positions
-        if random_shift:
+        if self.random_sequence_shifts:
             shifts = (((tokens == len(self.amino_acids) - 1).sum(dim=1) + 1) * torch.rand(len(tokens))).int()
             rows, columns = tokens.shape
             new_indices = ((torch.arange(columns).view((columns, 1)).repeat((1, rows)) - shifts) % columns).T

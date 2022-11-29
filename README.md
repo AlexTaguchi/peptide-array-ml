@@ -18,6 +18,10 @@ Neural network modeling of peptide sequences and binding data
 ### Publications
 1. Chowdhury, R., Taguchi, A. T., Kelbauskas, L., Stafford, P., Diehnelt, C. W., Zhao, Z-G., C. Williamson, P. C., Green, V., Woodbury, N. W. (2022) Submitted to *PLoS Computational Biology*
 
+   Matlab scripts (`publications/2022_PLoS_Computational_Biology`):
+   - **neural_network_fit.m**: Build arguments file and run neural network fitting.
+   - **multi_disease_classifier.m**: Classify disease states from neural network output.
+
 2. Taguchi, A. T., Boyd, J., Diehnelt, C. W., Legutki, J. B., Zhao, Z-G., and Woodbury, N. W. (2020) *Combinatorial Science*, **22** (10), 500-508 (DOI: 10.1021/acscombsci.0c00003)
    
    Scripts to reproduce figures (`publications/2020_Combinatorial_Science`):

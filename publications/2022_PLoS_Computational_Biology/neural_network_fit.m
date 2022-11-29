@@ -1,4 +1,4 @@
-function NN_fit7(Data,Sequence,Train,fit_sample,hidden_layers,hidden_nodes,log_shift,train_steps,weight_folder,Data_write)
+function neural_network_fit(Data,Sequence,Train,fit_sample,hidden_layers,hidden_nodes,log_shift,train_steps,weight_folder,Data_write)
 %This function runs an NN fit with all of the columns in Data and assuming
 %that the Sequences match the rows.  Most of the inputs to the python
 %program are hardwired below except the set in the function call
@@ -203,7 +203,7 @@ write_MLparms_to_file(args,arg_file)
 
 %now run the nn fit
 fprintf('Starting neural network...\n');
-status=system('python peptide_array_ml\__init__.py args.txt','-echo');
+status=system('python ..\..\peptide_array_ml\legacy.py args.txt','-echo');
 
 % %Go grab the results of the NN fit
 % fid1=fopen([main_dir,'\',weight_folder,'\',weight_folder,'.log']);
